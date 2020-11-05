@@ -1,0 +1,776 @@
+---
+title: "Faster than thought: Detecting sub-second activation sequences with sequential fMRI pattern analysis"
+subtitle: "Behavioral results"
+author: "Lennart Wittkuhn & Nicolas W. Schuck"
+date: "Last update: `r format(Sys.time(), '%d %B, %Y')`"
+site: bookdown::bookdown_site
+output:
+  bookdown::gitbook:
+    config:
+      toc:
+        collapse: subsection
+        scroll_highlight: yes
+        before: null
+        after: null
+      toolbar:
+        position: fixed
+      edit : null
+      download: null
+      search: yes
+      fontsettings:
+        theme: white
+        family: sans
+        size: 2
+      sharing:
+        facebook: yes
+        github: yes
+        twitter: yes
+        linkedin: no
+        weibo: no
+        instapaper: no
+        vk: no
+        all: ['facebook', 'twitter', 'linkedin']
+      info: yes
+      code_folding: "hide"
+fig.align: "center"
+header-includes:
+  - \usepackage{fontspec}
+  - \setmainfont{AgfaRotisSansSerif}
+email: wittkuhn@mpib-berlin.mpg.de
+documentclass: book
+link-citations: yes
+---
+
+# Behavior
+## Initialization {.tabset .tabset-fade .tabset-pills}
+
+### Load data and files
+```{r, warning=FALSE, message=FALSE}
+# define path to the root directory of the project:
+path_root <- rprojroot::find_rstudio_root_file()
+# source all relevant functions from the setup R script:
+source(here::here("code", "highspeed-analysis-setup.R"))
+```
+
+### Assign signal-detection labels
+```{r}
+# denotes misses (key was not pressed and stimulus was upside-down):
+dt_events$sdt_type[
+  dt_events$key_down == 0 & dt_events$stim_orient == 180] <- "miss"
+# denotes hits (key was pressed and stimulus was upside-down):
+dt_events$sdt_type[
+  dt_events$key_down == 1 & dt_events$stim_orient == 180] <- "hit"
+# denotes correct rejection (key was not pressed and stimulus was upright):
+dt_events$sdt_type[
+  dt_events$key_down == 0 & dt_events$stim_orient == 0] <- "correct rejection"
+# denotes false alarms (key was pressed and stimulus was upright):
+dt_events$sdt_type[
+  dt_events$key_down == 1 & dt_events$stim_orient == 0] <- "false alarm"
+```
+
+## Stimulus timings
+We calculate the differences between consecutive stimulus onsets:
+```{r}
+dt_events %>%
+  # get duration of stimuli by calculating differences between consecutive onsets:
+  .[, duration_check := shift(onset, type = "lead") - onset,
+    by = .(subject, run_study)] %>%
+  # get the difference between the expected and actual stimulus duration:
+  .[, duration_diff := duration_check - duration, by = .(subject, run_study)] %>%
+  # for each condition and trial check participants' responses:
+  .[, by = .(subject, condition, trial), ":=" (
+    # for each trial check if a key has been pressed:
+    trial_key_down = ifelse(any(key_down == 1, na.rm = TRUE), 1, 0),
+    # for each trial check if the participant was accurate:
+    trial_accuracy = ifelse(any(accuracy == 1, na.rm = TRUE), 1, 0)
+  )] %>%
+  .[, trial_type := factor(trial_type, levels = rev(unique(trial_type)))]
+```
+
+
+```{r}
+timings_summary = dt_events %>%
+  filter(condition %in% c("sequence", "repetition") & trial_type == "interval") %>%
+  setDT(.) %>%
+  .[, by = .(subject, condition, trial_type), {
+    results = t.test(duration_diff, mu = 0.001, alternative = "two.sided")
+    list(
+      mean = mean(duration_diff, na.rm = TRUE),
+      sd = sd(duration_diff, na.rm = TRUE),
+      min = min(duration_diff, na.rm = TRUE),
+      max = max(duration_diff, na.rm = TRUE),
+      num = .N,
+      tvalue = results$statistic,
+      df = results$parameter,
+      pvalue = results$p.value,
+      pvalue_round = round_pvalues(results$p.value)
+    )
+  }] %>%
+  .[, trial_type := factor(trial_type, levels = rev(unique(trial_type)))] %>%
+  setorder(., condition, trial_type)
+rmarkdown::paged_table(timings_summary)
+```
+
+```{r, echo = FALSE}
+ggplot(data = dt_events, aes(
+  y = as.numeric(duration_diff),
+  x = as.factor(trial_type),
+  fill = as.factor(trial_type)), na.rm = TRUE) +
+  facet_grid(vars(as.factor(trial_key_down)), vars(as.factor(condition))) +
+  geom_point(
+    aes(y = as.numeric(duration_diff), color = as.factor(trial_type)),
+    position = position_jitter(width = .15), size = .5, alpha = 1, na.rm = TRUE) +
+  geom_boxplot(width = .1, outlier.shape = NA, alpha = 0.5, na.rm = TRUE) +
+  scale_color_brewer(palette = "Spectral") +
+  scale_fill_brewer(palette = "Spectral") +
+  #coord_capped_flip(left = "both", bottom = "both", expand = TRUE) +
+  coord_flip() +
+  theme(legend.position = "none") +
+  xlab("Trial event (in serial order)") +
+  ylab("Difference between expected and actual timing (in s)") +
+  theme(strip.text = element_text(margin = margin(unit(c(t = 2, r = 2, b = 2, l = 2), "pt")))) +
+  theme(legend.position = "none") +
+  theme(panel.background = element_blank())
+```
+
+```{r, echo=FALSE}
+ggsave(filename = "highspeed_plot_behavior_timing_differences.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 6, height = 4)
+```
+
+We check the timing of the inter-trial interval on oddball trials:
+```{r}
+dt_odd_iti_mean = dt_events %>%
+  # filter for the stimulus intervals on oddball trials:
+  filter(condition == "oddball" & trial_type == "interval") %>% 
+  setDT(.) %>%
+  # calculate the mean duration of the oddball intervals for each participant:
+  .[, by = .(subject), .(
+    mean_duration = mean(duration, na.rm = TRUE),
+    num_trials = .N
+  )] %>%
+  verify(num_trials == 600)
+rmarkdown::paged_table(dt_odd_iti_mean)
+```
+
+## Behavioral performance
+
+### Overview: Mean accuracy
+```{r, echo = TRUE}
+chance_level = 50
+dt_acc = dt_events %>%
+  # filter out all events that are not related to a participants' response:
+  filter(!is.nan(accuracy)) %>%
+  # filter for only upside down stimuli on slow trials:
+  filter(!(condition == "oddball" & stim_orient == 0)) %>%
+  setDT(.) %>%
+  # check if the number of trials matches for every subject:
+  verify(.[(condition == "oddball"), by = .(subject), .(
+    num_trials = .N)]$num_trials == 120) %>%
+  verify(.[(condition == "sequence"), by = .(subject), .(
+    num_trials = .N)]$num_trials == 75) %>%
+  verify(.[(condition == "repetition"), by = .(subject), .(
+    num_trials = .N)]$num_trials == 45) %>%
+  # calculate the average accuracy for each participant and condition:
+  .[, by = .(subject, condition), .(
+    mean_accuracy = mean(accuracy, na.rm = TRUE) * 100,
+    num_trials = .N)] %>%
+  # check if the accuracy values are between 0 and 100:
+  assert(within_bounds(lower.bound = 0, upper.bound = 100), mean_accuracy) %>%
+  # create new variable that specifies excluded participants:
+  mutate(exclude = ifelse(mean_accuracy < chance_level, "yes", "no")) %>%
+  # create a short name for the conditions:
+  mutate(condition_short = substr(condition, start = 1, stop = 3)) %>%
+  # reorder the condition factor in descending order of accuracy:
+  transform(condition_short = fct_reorder(
+    condition_short, mean_accuracy, .desc = TRUE))
+rmarkdown::paged_table(dt_acc)
+```
+
+```{r, echo = TRUE}
+# create a list with all excluded subject ids and print the list:
+subjects_excluded = unique(dt_acc$subject[dt_acc$exclude == "yes"])
+print(subjects_excluded)
+```
+
+```{r, echo = TRUE, results = "hold"}
+dt_acc_mean = dt_acc %>%
+  # filter out all data of excluded participants:
+  filter(!(subject %in% unique(subject[exclude == "yes"]))) %>%
+  # check if the number of participants matches expectations:
+  verify(length(unique(subject)) == 36) %>% setDT(.) %>%
+  # calculate mean behavioral accuracy across participants for each condition:
+  .[, by = .(condition), {
+    ttest_results = t.test(mean_accuracy, mu = chance_level, alternative = "greater")
+    list(
+      pvalue = round_pvalues(ttest_results$p.value),
+      tvalue = round(ttest_results$statistic, digits = 2),
+      df = ttest_results$parameter,
+      num_subs = .N,
+      mean_accuracy = mean(mean_accuracy),
+      SD = sd(mean_accuracy),
+      cohens_d = round((mean(mean_accuracy) - chance_level) / sd(mean_accuracy), 2),
+      sem_upper = mean(mean_accuracy) + (sd(mean_accuracy)/sqrt(.N)),
+      sem_lower = mean(mean_accuracy) - (sd(mean_accuracy)/sqrt(.N))
+    )}] %>% verify(num_subs == 36) %>%
+  # create a short name for the conditions:
+  mutate(condition_short = substr(condition, start = 1, stop = 3)) %>%
+  # reorder the condition factor in descending order of accuracy:
+  transform(condition_short = fct_reorder(condition_short, mean_accuracy, .desc = TRUE))
+# show the table (https://rstudio.github.io/distill/tables.html):
+rmarkdown::paged_table(dt_acc_mean)
+```
+
+### Above-chance performance
+We plot only data of above-chance performers:
+```{r, echo = FALSE}
+fig_behav_all = ggplot(data = subset(dt_acc, exclude == "no"), aes(
+  x = as.factor(condition_short), y = as.numeric(mean_accuracy),
+  group = as.factor(condition_short), fill = as.factor(condition_short))) +
+  geom_bar(stat = "summary", fun = "mean", color = "black", fill = "white") +
+  geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
+               color = "black", fill = "lightgray", alpha = 0.5,
+               inherit.aes = TRUE, binwidth = 2) +
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+  ylab("Accuracy (%)") + xlab("Condition") +
+  scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  #coord_capped_cart(left = "both", bottom = "none") +
+  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
+  #theme(axis.title.x = element_text(color = "white"), axis.text.x = element_text(color = "white")) +
+  guides(shape = FALSE, color = FALSE, fill = FALSE)
+fig_behav_all
+```
+
+### Below chance performance
+We plot data of all participants with below chance performers highlighted in red.
+```{r, echo = FALSE}
+fig_behav_all_outlier = ggplot(data = dt_acc_mean,
+  mapping = aes(x = as.factor(condition_short), y = as.numeric(mean_accuracy),
+                group = as.factor(condition_short), fill = as.factor(condition_short))) +
+  geom_bar(aes(fill = as.factor(condition)), stat = "identity", color = "black", fill = "white") +
+  #geom_dotplot(data = subset(dt_acc, exclude == "no"),
+  #             aes(color = as.factor(exclude)),
+  #             binaxis = "y", stackdir = "center", stackratio = 0.5,
+  #             color = "black", fill = "lightgray", alpha = 0.5,
+  #             inherit.aes = TRUE, binwidth = 1) +
+  geom_point(data = subset(dt_acc, exclude == "no"),
+             aes(color = as.factor(exclude)),
+             position = position_jitter(width = 0.2, height = 0, seed = 2),
+             alpha = 0.5, inherit.aes = TRUE, pch = 21,
+             color = "black", fill = "lightgray") +
+  geom_point(data = subset(dt_acc, exclude == "yes"),
+             aes(color = as.factor(exclude), shape = as.factor(subject)),
+             position = position_jitter(width = 0.05, height = 0, seed = 4),
+             alpha = 1, inherit.aes = TRUE, color = "red") +
+  geom_errorbar(aes(ymin = sem_lower, ymax = sem_upper), width = 0.0, color = "black") +
+  ylab("Accuracy (%)") + xlab("Condition") +
+  scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  #coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(0, 100)) +
+  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
+  guides(shape = FALSE, fill = FALSE)
+fig_behav_all_outlier
+```
+
+## Oddball task
+### Mean accuracy
+Accuracy on oddball trials across all trials (in final sample):
+```{r}
+dt_acc_odd = dt_acc %>%
+  # filter for oddball / slow trials only:
+  filter(condition == "oddball") %>%
+  # exclude participants with below chance performance::
+  filter(!(subject %in% subjects_excluded)) %>%
+  # verify that the number of participants is correct:
+  verify(all(.N == 36))
+```
+
+```{r, echo = FALSE, fig.width=3}
+fig_behav_odd = ggplot(data = dt_acc_odd, aes(
+  x = "mean_acc", y = as.numeric(mean_accuracy))) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightgray") +
+  #geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
+  #             color = "black", fill = "lightgray", alpha = 0.5,
+  #             inherit.aes = TRUE, binwidth = 0.5) +
+  #geom_point(position = position_jitter(width = 0.2, height = 0, seed = 2),
+  #           alpha = 0.5, inherit.aes = TRUE, pch = 21,
+  #           color = "black", fill = "lightgray") +
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+  ylab("Accuracy (%)") + xlab("Condition") +
+  scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  #coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(90, 100)) +
+  theme(plot.title = element_text(size = 12, face = "plain")) +
+  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
+  theme(axis.title.x = element_text(color = "white"), axis.text.x = element_text(color = "white")) +
+  ggtitle("Slow") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig_behav_odd
+```
+
+### Accuracy across runs
+```{r}
+# calculate the mean accuracy per session and run for every participant:
+dt_odd_behav_run_sub = dt_events %>%
+  # exclude participants performing below chance:
+  filter(!(subject %in% subjects_excluded)) %>%
+  # select only oddball condition and stimulus events:
+  filter(condition == "oddball" & trial_type == "stimulus") %>%
+  # filter for upside-down trials (oddballs) only:
+  filter(stim_orient == 180) %>%
+  setDT(.) %>%
+  # calculate mean accuracy per session and run:
+  .[, by = .(subject, session, run_study, run_session), .(
+    mean_accuracy = mean(accuracy))] %>%
+  # express accuracy in percent by multiplying with 100:
+  transform(mean_accuracy = mean_accuracy * 100) %>%
+  # z-score the accuracy values:
+  #mutate(mean_accuracy_z = scale(mean_accuracy, scale = TRUE, center = TRUE)) %>%
+  # check whether the mean accuracy is within the expected range of 0 to 100:
+  assert(within_bounds(lower.bound = 0, upper.bound = 100), mean_accuracy)
+
+# calculate mean accuracy per session and run across participants:
+dt_odd_behav_run_mean = dt_odd_behav_run_sub %>%
+  setDT(.) %>%
+  # average across participants:
+  .[, by = .(session, run_study, run_session), .(
+    mean_accuracy = mean(mean_accuracy),
+    num_subs = .N,
+    sem_upper = mean(mean_accuracy) + (sd(mean_accuracy)/sqrt(.N)),
+    sem_lower = mean(mean_accuracy) - (sd(mean_accuracy)/sqrt(.N))
+  )] %>% verify(num_subs == 36) %>%
+  # z-score the accuracy values:
+  mutate(mean_accuracy_z = scale(mean_accuracy, scale = TRUE, center = TRUE))
+```
+
+
+We run a LME model to test the linear effect of experiment run on accuracy:
+```{r, results = "hold"}
+lme_odd_behav_run = lmerTest::lmer(
+  mean_accuracy ~ run_study + (1 + run_study | subject),
+  data = dt_odd_behav_run_sub, na.action = na.omit, control = lcctrl)
+summary(lme_odd_behav_run)
+anova(lme_odd_behav_run)
+```
+
+We run a second model to test run- and session-specific effects:
+```{r, results = "hold"}
+dt <- dt_odd_behav_run_sub %>%
+  transform(run_session = as.factor(paste0("run-0", run_session)),
+            session = as.factor(paste0("ses-0", session)))
+lme_odd_behav_run = lmerTest::lmer(
+  mean_accuracy ~ session + run_session + (1 + session + run_session | subject),
+  data = dt, na.action = na.omit, control = lcctrl)
+summary(lme_odd_behav_run)
+emmeans(lme_odd_behav_run, list(pairwise ~ run_session | session))
+anova(lme_odd_behav_run)
+rm(dt)
+```
+
+```{r, echo=FALSE}
+# change labels of the facet:
+facet_labels_new = unique(paste0("Session ", dt_events$session))
+facet_labels_old = as.character(unique(dt_events$session))
+names(facet_labels_new) = facet_labels_old
+# plot behavioral accuracy across runs:
+plot_odd_run = ggplot(data = dt_odd_behav_run_mean, mapping = aes(
+  y = as.numeric(mean_accuracy), x = as.numeric(run_session))) +
+  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, fill = "gray") +
+  geom_line(color = "black") +
+  facet_wrap(~ as.factor(session), labeller = as_labeller(facet_labels_new)) +
+  ylab("Accuracy (%)") + xlab("Run") +
+  ylim(c(90, 100)) +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(90,100)) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2)))
+plot_odd_run
+```
+
+### Performance for misses and false alarms
+
+```{r}
+dt_odd_behav_sdt_sub = dt_events %>%
+  # exclude participants performing below chance:
+  filter(!(subject %in% subjects_excluded)) %>%
+  # select only oddball condition and stimulus events:
+  filter(condition == "oddball" & trial_type == "stimulus") %>%
+  setDT(.) %>%
+  # create new variable with number of upside-down / upright stimuli per run:
+  .[, by = .(subject, session, run_session, stim_orient), ":=" (
+    num_orient = .N
+  )] %>%
+  # get the number of signal detection trial types for each run:
+  .[, by = .(subject, session, run_session, sdt_type), .(
+    num_trials = .N,
+    freq = .N/unique(num_orient)
+  )] %>%
+  # add missing values:
+  complete(nesting(subject, session, run_session), nesting(sdt_type),
+           fill = list(num_trials = 0, freq = 0)) %>%
+  transform(freq = freq * 100) %>%
+  filter(sdt_type %in% c("false alarm", "miss")) %>%
+  mutate(sdt_type_numeric = ifelse(sdt_type == "false alarm", 1, -1))
+```
+
+```{r, results = "hold"}
+lme_odd_behav_sdt = lmer(
+  freq ~ sdt_type + run_session * session + (1 + run_session + session | subject),
+  data = subset(dt_odd_behav_sdt_sub), na.action = na.omit, control = lcctrl)
+summary(lme_odd_behav_sdt)
+anova(lme_odd_behav_sdt)
+emmeans_results = emmeans(lme_odd_behav_sdt, list(pairwise ~ sdt_type))
+emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
+emmeans_results
+```
+
+```{r, echo = FALSE}
+plot_odd_sdt = ggplot(data = dt_odd_behav_sdt_sub, mapping = aes(
+  y = as.numeric(freq), x = as.numeric(run_session),
+  fill = as.factor(sdt_type))) +
+  stat_summary(geom = "bar", fun = mean, position = position_dodge(), na.rm = TRUE) +
+  stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0) +
+  facet_wrap(~ as.factor(session), labeller = as_labeller(facet_labels_new)) +
+  ylab("Frequency (%)") + xlab("Run") +
+  ylim(c(0, 10)) +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,10)) +
+  scale_fill_viridis(name = "Error", discrete = TRUE) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
+  theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
+        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0))
+plot_odd_sdt
+```
+
+## Sequence trials
+
+### Mean accuracy
+
+```{r}
+dt_seq_behav = dt_events %>%
+  # filter behavioral events data for sequence trials only:
+  filter(condition == "sequence") %>%
+  setDT(.) %>%
+  # create additional variables to describe each trial:
+  .[, by = .(subject, trial), ":=" (
+    trial_key_down = ifelse(any(key_down == 1, na.rm = TRUE), 1, 0),
+    trial_accuracy = ifelse(any(accuracy == 1, na.rm = TRUE), 1, 0),
+    trial_target_position = serial_position[which(target == 1)],
+    trial_speed = unique(interval_time[which(!is.na(interval_time))])
+  )] %>%
+  # filter for choice trials only:
+  filter(trial_type == "choice") %>%
+  setDT(.) %>%
+  # group speed conditions into fast and slow conditions:
+  mutate(speed = ifelse(trial_speed %in% c(2.048, 0.512), "slow", "fast")) %>%
+  # define variable factors of interest as numeric:
+  transform(trial_speed = as.numeric(trial_speed)) %>%
+  transform(trial_target_position = as.numeric(trial_target_position)) %>%
+  setDT(.)
+```
+
+### Effect of sequence speed
+
+```{r}
+dt_seq_behav_speed = dt_seq_behav %>%
+  # filter out excluded subjects:
+  filter(!(subject %in% subjects_excluded)) %>%
+  setDT(.) %>%
+  # average accuracy for each participant:
+  .[, by = .(subject, trial_speed), .(
+    num_trials = .N,
+    mean_accuracy = mean(accuracy)
+  )] %>%
+  transform(mean_accuracy = mean_accuracy * 100) %>%
+  setDT(.) %>%
+  verify(all(num_trials == 15)) %>%
+  verify(.[, by = .(trial_speed), .(
+    num_subjects = .N
+  )]$num_subjects == 36) %>%
+  setorder(subject, trial_speed) %>%
+  mutate(trial_speed = as.numeric(trial_speed)) %>%
+  setDT(.)
+```
+
+```{r, results="hold"}
+lme_seq_behav = lmer(
+  mean_accuracy ~ trial_speed + (1 + trial_speed | subject),
+  data = dt_seq_behav_speed, na.action = na.omit, control = lcctrl)
+summary(lme_seq_behav)
+anova(lme_seq_behav)
+emmeans_results = emmeans(lme_seq_behav, list(pairwise ~ trial_speed))
+emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
+emmeans_results
+emmeans_pvalues
+```
+
+### Difference from chance
+
+```{r}
+chance_level = 50
+dt_seq_behav_mean = dt_seq_behav_speed %>%
+  # average across participants:
+  .[, by = .(trial_speed), {
+    ttest_results = t.test(
+      mean_accuracy, mu = chance_level, alternative = "greater")
+  list(
+    mean_accuracy = round(mean(mean_accuracy), digits = 2),
+    sd_accuracy = round(sd(mean_accuracy), digits = 2),
+    tvalue = round(ttest_results$estimate, digits = 2),
+    pvalue = ttest_results$p.value,
+    cohens_d = round((mean(mean_accuracy) - chance_level)/sd(mean_accuracy), 2),
+    df = ttest_results$parameter,
+    num_subs = .N,
+    sem_upper = mean(mean_accuracy) + (sd(mean_accuracy)/sqrt(.N)),
+    sem_lower = mean(mean_accuracy) - (sd(mean_accuracy)/sqrt(.N))
+  )}] %>% verify(num_subs == 36) %>%
+  mutate(sem_range = sem_upper - sem_lower) %>%
+  mutate(pvalue_adjust = p.adjust(pvalue, method = "fdr")) %>%
+  mutate(pvalue_adjust_round = round_pvalues(pvalue_adjust))
+# print paged table:
+rmarkdown::paged_table(dt_seq_behav_mean)
+```
+
+### Reduction in accuracy
+
+```{r}
+a = dt_seq_behav_mean$mean_accuracy[dt_seq_behav_mean$trial_speed == 2.048]
+b = dt_seq_behav_mean$mean_accuracy[dt_seq_behav_mean$trial_speed == 0.032]
+reduced_acc = round((1 - (b/a)) * 100, 2)
+sprintf("reduction in accuracy: %.2f", reduced_acc)
+```
+
+```{r, echo=FALSE}
+fig_seq_speed = ggplot(data = dt_seq_behav_speed, mapping = aes(
+  y = as.numeric(mean_accuracy), x = as.factor(as.numeric(trial_speed)*1000),
+  fill = as.factor(trial_speed), color = as.factor(trial_speed))) +
+  geom_bar(stat = "summary", fun = "mean") +
+  #geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
+  #             color = "black", alpha = 0.5,
+  #             inherit.aes = TRUE, binwidth = 2) +
+  #geom_point(position = position_jitter(width = 0.2, height = 0, seed = 3),
+  #           alpha = 0.5, pch = 21, color = "black") +
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  ylab("Accuracy (%)") + xlab("Sequence speed (ms)") +
+  scale_fill_viridis(discrete = TRUE, guide = FALSE, option = "cividis") +
+  scale_color_viridis(discrete = TRUE, guide = FALSE, option = "cividis") +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
+  theme(plot.title = element_text(size = 12, face = "plain")) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  ggtitle("Sequence") +
+  theme(plot.title = element_text(hjust = 0.5))
+fig_seq_speed
+```
+
+### Effect of target position
+
+```{r}
+dt_seq_behav_position = dt_seq_behav %>%
+  # filter out excluded subjects:
+  filter(!(subject %in% subjects_excluded)) %>% setDT(.) %>%
+  # average accuracy for each participant:
+  .[, by = .(subject, trial_target_position), .(
+    num_trials = .N,
+    mean_accuracy = mean(accuracy)
+  )] %>%
+  verify(.[, by = .(trial_target_position), .(
+    num_subs = .N
+  )]$num_subs == 36) %>%
+  transform(mean_accuracy = mean_accuracy * 100) %>%
+  setorder(subject, trial_target_position)
+```
+
+```{r}
+lme_seq_behav_position = lmer(
+  mean_accuracy ~ trial_target_position + (1 + trial_target_position | subject),
+  data = dt_seq_behav_position, na.action = na.omit, control = lcctrl)
+summary(lme_seq_behav_position)
+anova(lme_seq_behav_position)
+```
+
+```{r, echo=FALSE}
+fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
+  y = as.numeric(mean_accuracy), x = as.factor(trial_target_position),
+  fill = as.factor(trial_target_position), color = as.factor(trial_target_position))) +
+  geom_bar(stat = "summary", fun = "mean") +
+  #geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
+  #             color = "black", alpha = 0.5,
+  #             inherit.aes = TRUE, binwidth = 2) +
+  #geom_point(pch = 21, alpha = 0.5, color = "black",
+  #           position = position_jitter(height = 0, seed = 3)) +
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  ylab("Accuracy (%)") + xlab("Target position") +
+  #scale_fill_viridis(discrete = TRUE, guide = FALSE, option = "magma") +
+  #scale_color_viridis(discrete = TRUE, guide = FALSE, option = "magma") +
+  scale_fill_manual(values = color_events, guide = FALSE) +
+  scale_color_manual(values = color_events, guide = FALSE) +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank())
+fig_seq_position
+```
+
+## Repetition trials
+
+```{r}
+dt_rep_behav = dt_events %>%
+  # filter for repetition trials only:
+  filter(condition == "repetition") %>% setDT(.) %>%
+  # create additional variables to describe each trial:
+  .[, by = .(subject, trial), ":=" (
+    trial_key_down = ifelse(any(key_down == 1, na.rm = TRUE), 1, 0),
+    trial_accuracy = ifelse(any(accuracy == 1, na.rm = TRUE), 1, 0),
+    trial_target_position = serial_position[which(target == 1)],
+    trial_speed = unique(interval_time[which(!is.na(interval_time))])
+  )] %>%
+  # select only choice trials that contain the accuracy data:
+  filter(trial_type == "choice") %>% setDT(.) %>%
+  verify(all(trial_accuracy == accuracy)) %>%
+  # average across trials separately for each participant:
+  .[, by = .(subject, trial_target_position), .(
+    num_trials = .N,
+    mean_accuracy = mean(accuracy)
+  )] %>% #verify(all(num_trials == 5)) %>%
+  # transform mean accuracy into percent (%)
+  transform(mean_accuracy = mean_accuracy * 100) %>%
+  # check if accuracy values range between 0 and 100
+  verify(between(x = mean_accuracy, lower = 0, upper = 100))
+```
+
+### Difference from chance
+
+```{r}
+chance_level = 50
+dt_rep_behav_chance = dt_rep_behav %>%
+  # filter out excluded subjects:
+  filter(!(subject %in% subjects_excluded)) %>%
+  setDT(.) %>%
+  # average across participants:
+  .[, by = .(trial_target_position), {
+    ttest_results = t.test(
+      mean_accuracy, mu = chance_level, alternative = "greater")
+  list(
+    mean_accuracy = round(mean(mean_accuracy), digits = 2),
+    sd_accuracy = round(sd(mean_accuracy), digits = 2),
+    tvalue = round(ttest_results$estimate, digits = 2),
+    pvalue = ttest_results$p.value,
+    cohens_d = round((mean(mean_accuracy) - chance_level)/sd(mean_accuracy), 2),
+    df = ttest_results$parameter,
+    num_subs = .N,
+    sem_upper = mean(mean_accuracy) + (sd(mean_accuracy)/sqrt(.N)),
+    sem_lower = mean(mean_accuracy) - (sd(mean_accuracy)/sqrt(.N))
+  )}] %>% verify(num_subs == 36) %>%
+  mutate(sem_range = sem_upper - sem_lower) %>%
+  setDT(.) %>%
+  filter(trial_target_position %in% seq(2,9)) %>%
+  # create additional variable to label forward and backward interference:
+  mutate(interference = ifelse(
+    trial_target_position == 2, "fwd", trial_target_position)) %>%
+  transform(interference = ifelse(
+    trial_target_position == 9, "bwd", interference)) %>%
+  mutate(pvalue_adjust = p.adjust(pvalue, method = "fdr")) %>%
+  mutate(pvalue_adjust_round = round_pvalues(pvalue_adjust)) %>%
+  mutate(significance = ifelse(pvalue_adjust < 0.05, "*", "")) %>%
+  mutate(cohens_d = paste0("d = ", cohens_d, significance)) %>%
+  mutate(label = paste0(
+    trial_target_position - 1, "/", 10 - trial_target_position)) %>%
+  setDT(.) %>%
+  setorder(trial_target_position)
+# print table:
+rmarkdown::paged_table(dt_rep_behav_chance)
+```
+
+
+```{r, echo=FALSE}
+plot_data = dt_rep_behav_chance %>% filter(trial_target_position %in% c(2,9))
+fig_behav_rep = ggplot(data = plot_data, mapping = aes(
+  y = as.numeric(mean_accuracy), x = fct_rev(as.factor(interference)),
+  fill = as.factor(interference))) +
+  geom_bar(stat = "summary", fun = "mean") +
+  #geom_dotplot(data = dt_rep_behav %>%
+  #               filter(!(subject %in% subjects_excluded)) %>%
+  #               filter(trial_target_position %in% c(2,9)),
+  #             binaxis = "y", stackdir = "center", stackratio = 0.5,
+  #             color = "black", alpha = 0.5, inherit.aes = TRUE, binwidth = 2) +
+  geom_errorbar(aes(ymin = sem_lower, ymax = sem_upper), width = 0.0, color = "black") +
+  ylab("Accuracy (%)") + xlab("Interfererence") +
+  ggtitle("Repetition") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("red", "dodgerblue"), guide = FALSE) +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(plot.title = element_text(size = 12, face = "plain")) +
+  #scale_y_continuous(labels = label_fill(seq(0, 100, 12.5), mod = 2), breaks = seq(0, 100, 12.5)) +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black")
+  #geom_text(aes(y = as.numeric(mean_accuracy) + 10, label = pvalue_adjust_round), size = 3)
+fig_behav_rep
+```
+
+```{r, echo=FALSE}
+plot_data = dt_rep_behav_chance %>% filter(trial_target_position %in% seq(2,9))
+plot_behav_rep_all = ggplot(data = plot_data, mapping = aes(
+  y = as.numeric(mean_accuracy), x = as.numeric(trial_target_position),
+  fill = as.numeric(trial_target_position))) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = sem_lower, ymax = sem_upper), width = 0.0, color = "black") +
+  geom_text(aes(y = as.numeric(mean_accuracy) + 10, label = cohens_d), size = 2.5) +
+  ylab("Accuracy (%)") + xlab("First / second item repetitions") +
+  scale_fill_gradient(low = "dodgerblue", high = "red", guide = FALSE) +
+  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
+  scale_x_continuous(labels = plot_data$label, breaks = seq(2, 9, 1)) +
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank())
+plot_behav_rep_all
+
+ggsave(filename = "highspeed_plot_behavior_repetition_supplement.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures,
+       scale = 1, dpi = "retina", width = 5, height = 3, units = "in")
+```
+
+```{r}
+lme_rep_behav_condition = lmer(
+  mean_accuracy ~ trial_target_position + (1 + trial_target_position|subject),
+  data = dt_rep_behav, na.action = na.omit, control = lcctrl)
+summary(lme_rep_behav_condition)
+anova(lme_rep_behav_condition)
+```
+## Figure for the main text
+```{r, echo = FALSE}
+plot_grid(fig_behav_odd, fig_seq_speed, fig_behav_rep, ncol = 3,
+          rel_widths = c(2, 4.5, 2.5), labels = c("d", "e", "f"))
+ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures,
+       scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
+```
+
+## Figure for the supplementary information:
+```{r, echo = FALSE}
+plot_grid(
+  plot_grid(
+    fig_behav_all_outlier, plot_odd_sdt, plot_odd_run,
+    rel_widths = c(3.5, 6, 5), ncol = 3, nrow = 1, labels = c("a", "b", "c")),
+  plot_grid(
+    fig_seq_position, plot_behav_rep_all, labels = c("d", "e"),
+    ncol = 2, nrow = 1, rel_widths = c(4, 6)),
+  nrow = 2)
+ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 8, height = 5)
+```
+
+## Sample characteristics
+```{r, results = "hold"}
+# read data table with participant information:
+dt_participants <- do.call(rbind, lapply(Sys.glob(path_participants), fread))
+# remove selected participants from the data table:
+dt_participants = dt_participants %>%
+  filter(!(participant_id %in% subjects_excluded))
+table(dt_participants$sex)
+round(sd(dt_participants$age), digits = 2)
+summary(dt_participants[c("age", "digit_span", "session_interval")])
+round(sd(dt_participants$session_interval), digits = 2)
+```
+
