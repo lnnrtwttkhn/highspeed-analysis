@@ -1,5 +1,10 @@
 # find the path to the root of this project:
-path_root <- rprojroot::find_rstudio_root_file()
+if (!requireNamespace("here")) install.packages("here")
+if ( basename(here::here()) == "highspeed" ) {
+  path_root = here::here("highspeed-analysis")
+} else {
+  path_root = here::here()
+}
 source(file.path(path_root, "code", "highspeed-analysis-source.R"))
 # reverting to ggplot2 version 3.2.1 for lemon compatibility
 # cf. https://github.com/stefanedwards/lemon/issues/20
@@ -17,22 +22,22 @@ packages <- c("R.matlab", "ggplot2", "dplyr", "ggpubr", "psyphy", "ggm",
 # load packages using the load_packages function:
 load_packages(packages_list = packages)
 # specify paths:
-source(here::here("code", "highspeed-cluster-permutation.R"))
-source(here::here("code", "raincloud-plots", "tutorial_R", "R_rainclouds.R"))
-source(here::here("code", "raincloud-plots", "tutorial_R", "summarySE.R"))
+source(file.path(path_root, "highspeed-cluster-permutation.R"))
+source(file.path(path_root, "raincloud-plots", "tutorial_R", "R_rainclouds.R"))
+source(file.path(path_root, "raincloud-plots", "tutorial_R", "summarySE.R"))
 # path to figures created by the analysis code:
 path_figures <- here::here("figures")
 # path to the participants.tsv file (according to BIDS):
 # datalad get data/bids/participants.tsv
-path_participants <- here::here("data", "bids", "participants.tsv")
+path_participants <- file.path(path_root, "data", "bids", "participants.tsv")
 # path to the events.tsv files (according to BIDS):
-path_events <- here::here("data", "bids", "*", "*", "func", "*events.tsv")
+path_events <- file.path(path_root, "data", "bids", "*", "*", "func", "*events.tsv")
 # path to data from the decoding analysis:
-path_pred <- here::here("data", "decoding", "*", "data", "*decoding.csv")
+path_pred <- file.path(path_root, "data", "decoding", "*", "data", "*decoding.csv")
 # path to the data from the mask thresholding:
-path_thresh <- here::here("data", "decoding", "*", "data", "*thresholding.csv")
+path_thresh <- file.path(path_root, "data", "decoding", "*", "data", "*thresholding.csv")
 # path to the data of the voxel patterns:
-path_patterns <- here::here("data", "decoding", "*", "data", "*voxel_patterns_union.csv")
+path_patterns <- file.path(path_root, "data", "decoding", "*", "data", "*voxel_patterns_union.csv")
 # Load all [BIDS](http://bids.neuroimaging.io/) events files:
 # read all events files and concatenate them in a data table:
 # datalad get data/bids/sub-*/ses-*/func/*events.tsv
