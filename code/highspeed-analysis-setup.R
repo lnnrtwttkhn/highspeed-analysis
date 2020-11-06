@@ -10,7 +10,7 @@ source(file.path(path_root, "code", "highspeed-analysis-source.R"))
 # cf. https://github.com/stefanedwards/lemon/issues/20
 #devtools::install_version("ggplot2", version = "3.3.0", repos = "http://cran.us.r-project.org")
 # create an array with all required packages:
-packages <- c("R.matlab", "ggplot2", "dplyr", "ggpubr", "psyphy", "ggm",
+packages <- c("R.matlab", "ggplot2", "dplyr", "ggpubr", "psyphy", "graph", "ggm",
              "corrplot", "reshape2", "afex", "polycor", "tinytex", "extrafont",
              "viridis", "rjson", "jsonlite", "tidyr", "combinat", "rlist",
              "lemon", "doMC", "plyr", "styler", "gridExtra", "grid", "report",
