@@ -46,10 +46,15 @@ link-citations: yes
 
 ### Load data and files
 ```{r, warning=FALSE, message=FALSE}
-# define path to the root directory of the project:
-path_root <- rprojroot::find_rstudio_root_file()
+# find the path to the root of this project:
+if (!requireNamespace("here")) install.packages("here")
+if ( basename(here::here()) == "highspeed" ) {
+  path_root = here::here("highspeed-analysis")
+} else {
+  path_root = here::here()
+}
 # source all relevant functions from the setup R script:
-source(here::here("code", "highspeed-analysis-setup.R"))
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
 ### Assign signal-detection labels
