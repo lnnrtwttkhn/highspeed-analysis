@@ -22,9 +22,9 @@ packages <- c("R.matlab", "ggplot2", "dplyr", "ggpubr", "psyphy", "ggm",
 # load packages using the load_packages function:
 load_packages(packages_list = packages)
 # specify paths:
-source(file.path(path_root, "highspeed-cluster-permutation.R"))
-source(file.path(path_root, "raincloud-plots", "tutorial_R", "R_rainclouds.R"))
-source(file.path(path_root, "raincloud-plots", "tutorial_R", "summarySE.R"))
+source(file.path(path_root, "code", "highspeed-cluster-permutation.R"))
+source(file.path(path_root, "code", "raincloud-plots", "tutorial_R", "R_rainclouds.R"))
+source(file.path(path_root, "code", "raincloud-plots", "tutorial_R", "summarySE.R"))
 # path to figures created by the analysis code:
 path_figures <- here::here("figures")
 # path to the participants.tsv file (according to BIDS):
