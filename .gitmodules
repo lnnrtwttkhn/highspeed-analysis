@@ -1,7 +1,3 @@
 [submodule "code/raincloud-plots"]
 	path = code/raincloud-plots
 	url = https://github.com/RainCloudPlots/RainCloudPlots.git
-[submodule "data/bids"]
-	path = data/bids
-	url = https://git.mpib-berlin.mpg.de/wittkuhn/highspeed-bids.git
-	datalad-id = 94ae2510-f811-11ea-a3da-00e04c10078d
