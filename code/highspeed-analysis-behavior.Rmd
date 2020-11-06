@@ -138,7 +138,7 @@ ggplot(data = dt_events, aes(
   theme(panel.background = element_blank())
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, eval=FALSE}
 ggsave(filename = "highspeed_plot_behavior_timing_differences.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 6, height = 4)
@@ -729,7 +729,9 @@ plot_behav_rep_all = ggplot(data = plot_data, mapping = aes(
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
   theme(axis.ticks.x = element_blank(), axis.line.x = element_blank())
 plot_behav_rep_all
+```
 
+```{r, echo=TRUE, eval=FALSE}
 ggsave(filename = "highspeed_plot_behavior_repetition_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures,
        scale = 1, dpi = "retina", width = 5, height = 3, units = "in")
@@ -742,14 +744,19 @@ lme_rep_behav_condition = lmer(
 summary(lme_rep_behav_condition)
 anova(lme_rep_behav_condition)
 ```
+
 ## Figure for the main text
 ```{r, echo = FALSE}
 plot_grid(fig_behav_odd, fig_seq_speed, fig_behav_rep, ncol = 3,
           rel_widths = c(2, 4.5, 2.5), labels = c("d", "e", "f"))
+```
+
+```{r, echo=FALSE, eval=FALSE}
 ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures,
        scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
 ```
+
 
 ## Figure for the supplementary information:
 ```{r, echo = FALSE}
@@ -761,10 +768,15 @@ plot_grid(
     fig_seq_position, plot_behav_rep_all, labels = c("d", "e"),
     ncol = 2, nrow = 1, rel_widths = c(4, 6)),
   nrow = 2)
+```
+
+```{r, echo=FALSE, eval=FALSE}
 ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 8, height = 5)
 ```
+
+
 
 ## Sample characteristics
 ```{r, results = "hold"}
