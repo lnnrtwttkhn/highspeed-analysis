@@ -369,7 +369,7 @@ lme_odd_behav_run = lmerTest::lmer(
   mean_accuracy ~ session + run_session + (1 + session + run_session | subject),
   data = dt, na.action = na.omit, control = lcctrl)
 summary(lme_odd_behav_run)
-emmeans(lme_odd_behav_run, list(pairwise ~ run_session | session))
+emmeans(lme_odd_behav_run, list(pairwise ~ run_session | session))
 anova(lme_odd_behav_run)
 rm(dt)
 ```
