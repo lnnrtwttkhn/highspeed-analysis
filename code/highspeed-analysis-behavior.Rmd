@@ -782,7 +782,8 @@ ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
 dt_participants <- do.call(rbind, lapply(Sys.glob(path_participants), fread))
 # remove selected participants from the data table:
 dt_participants = dt_participants %>%
-  filter(!(participant_id %in% subjects_excluded))
+  filter(!(participant_id %in% subjects_excluded)) %>%
+  setDT(.)
 base::table(dt_participants$sex)
 round(sd(dt_participants$age), digits = 2)
 base::summary(
