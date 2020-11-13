@@ -785,7 +785,8 @@ dt_participants = dt_participants %>%
   filter(!(participant_id %in% subjects_excluded))
 base::table(dt_participants$sex)
 round(sd(dt_participants$age), digits = 2)
-base::summary(dt_participants[c("age", "digit_span", "session_interval")])
+base::summary(
+  dt_participants[, c("age", "digit_span", "session_interval"), with = FALSE])
 round(sd(dt_participants$session_interval), digits = 2)
 ```
 
