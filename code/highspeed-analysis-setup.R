@@ -58,5 +58,6 @@ dt_events[, by = .(subject, condition, trial), ":=" (
 # create color list for probabilities of individual sequence events:
 color_events <- rev(hcl.colors(5, "Zissou 1"))
 # define global lmer settings used in all mixed effects lmer models:
-lcctrl <- lmerControl(optimizer = c("bobyqa"), optCtrl = list(maxfun = 500000),
-                     calc.derivs = FALSE)
+lcctrl <- lmerControl(
+  optimizer = c("bobyqa"), optCtrl = list(maxfun = 500000),
+  calc.derivs = FALSE)

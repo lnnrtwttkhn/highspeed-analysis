@@ -746,7 +746,7 @@ anova(lme_rep_behav_condition)
 ```
 
 ## Figure for the main text
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 plot_grid(fig_behav_odd, fig_seq_speed, fig_behav_rep, ncol = 3,
           rel_widths = c(2, 4.5, 2.5), labels = c("d", "e", "f"))
 ```
@@ -759,7 +759,7 @@ ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
 
 
 ## Figure for the supplementary information:
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 plot_grid(
   plot_grid(
     fig_behav_all_outlier, plot_odd_sdt, plot_odd_run,
@@ -776,18 +776,16 @@ ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
        dpi = "retina", width = 8, height = 5)
 ```
 
-
-
 ## Sample characteristics
-```{r, results = "hold"}
+```{r, results="hold"}
 # read data table with participant information:
 dt_participants <- do.call(rbind, lapply(Sys.glob(path_participants), fread))
 # remove selected participants from the data table:
 dt_participants = dt_participants %>%
   filter(!(participant_id %in% subjects_excluded))
-table(dt_participants$sex)
+base::table(dt_participants$sex)
 round(sd(dt_participants$age), digits = 2)
-summary(dt_participants[c("age", "digit_span", "session_interval")])
+base::summary(dt_participants[c("age", "digit_span", "session_interval")])
 round(sd(dt_participants$session_interval), digits = 2)
 ```
 
