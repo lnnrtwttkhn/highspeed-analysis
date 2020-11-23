@@ -5,3 +5,7 @@
 	path = data/bids
 	url = https://github.com/lnnrtwttkhn/highspeed-bids.git
 	datalad-id = 94ae2510-f811-11ea-a3da-00e04c10078d
+[submodule "data/decoding"]
+	path = data/decoding
+	url = https://github.com/lnnrtwttkhn/highspeed-decoding.git
+	datalad-id = 9d1e00e4-2a6b-11eb-af13-00e04c10078d
