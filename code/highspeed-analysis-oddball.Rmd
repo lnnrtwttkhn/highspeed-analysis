@@ -1,0 +1,1010 @@
+# Oddball
+
+## Initialization
+We load the data and relevant functions:
+```{r, warning=FALSE, message=FALSE}
+# find the path to the root of this project:
+if (!requireNamespace("here")) install.packages("here")
+if ( basename(here::here()) == "highspeed" ) {
+  path_root = here::here("highspeed-analysis")
+} else {
+  path_root = here::here()
+}
+# source all relevant functions from the setup R script:
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
+# create a list of participants to exclude based on behavioral performance:
+sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
+```
+
+## Decoding accuracy
+### Mean decoding accuracy
+We calculate the mean decoding accuracy:
+
+```{r, results="hold", echo=TRUE}
+calc_class_stim_acc <- function(data, mask_label) {
+  # calculate the mean decoding accuracy for each participant:
+  dt_odd_peak = data %>%
+    # select data for the oddball peak decoding
+    # leave out the redundant "other" class predictions:
+    filter(test_set == "test-odd_peak" & class != "other" & mask == mask_label) %>%
+    # filter out excluded participants:
+    filter(!(id %in% sub_exclude)) %>%
+    # only check classifier of stimulus presented on a given trial:
+    filter(class == stim) %>%
+    # calculate the decoding accuracy by comparing true and predicted label:
+    mutate(acc = 0) %>%
+    transform(acc = ifelse(pred_label == stim, 1, acc)) %>%
+    setDT(.) %>%
+    # calculate average decoding accuracy for every participant and classification:
+    .[, by = .(classification, id), .(
+      mean_accuracy = mean(acc) * 100, 
+      num_trials = .N
+    )] %>%
+    verify(all(num_trials <= 480)) %>%
+    # verify if the number of participants matches:
+    verify(.[classification == "ovr", .(num_subs = .N)]$num_subs == 36)
+  return(dt_odd_peak)
+}
+```
+
+```{r, results="hold", echo=TRUE}
+calc_max_prob_acc <- function(data, mask_label) {
+  dt_odd_peak <- data %>%
+    # select data for the oddball peak decoding
+    # leave out the redundant "other" class predictions:
+    filter(test_set == "test-odd_peak" & class != "other" & mask == mask_label) %>%
+    # filter out excluded participants:
+    filter(!(id %in% sub_exclude)) %>%
+    # calculate the decoding accuracy by comparing true and predicted label:
+    setDT(.) %>%
+    # calculate average decoding accuracy for every participant and classification:
+    .[, by = .(classification, id, trial, stim), .(
+      max_prob_label = class[which.max(probability)],
+      num_classes = .N
+    )] %>%
+    verify(num_classes == 5) %>%
+    .[, "acc" := ifelse(stim == max_prob_label, 1, 0)] %>%
+    .[, by = .(classification, id), .(
+      mean_accuracy = mean(acc) * 100,
+      num_trials = .N
+    )] %>%
+    verify(num_trials <= 480)
+  return(dt_odd_peak)
+}
+```
+
+We print the results for the decoding accuracy:
+```{r, results="hold", warning=FALSE, message=FALSE}
+decoding_accuracy <- function(accuracy, alt_label){
+  # print average decoding accuracy:
+  print(sprintf("decoding accuracy: m = %0.2f %%", mean(accuracy)))
+  # print sd decoding accuracy:
+  print(sprintf("decoding accuracy: sd = %0.2f %%", sd(accuracy)))
+  # print range of decoding accuracy:
+  print(sprintf("decoding accuracy: range = %s %%",
+          paste(round(range(accuracy),0), collapse = "-")))
+  # define decoding accuracy baseline (should equal 20%):
+  acc_baseline = 100/5
+  # TODO: with ensemble classifiers, does this have to be 0?
+  print(sprintf("chance baseline = %d %%", acc_baseline))
+  # perform effect size (cohen`s d)
+  cohens_d = (mean(accuracy) - acc_baseline) / sd(accuracy)
+  print(sprintf("effect size (cohen's d) = %0.2f", cohens_d))
+  # perform shapiro-wilk test to test for normality of the data
+  print(shapiro.test(accuracy))
+  # perform one-sided one-sample t-test against baseline:
+  results = t.test(accuracy, mu = acc_baseline, alternative = alt_label)
+  print(results)
+  # perform one-sample wilcoxon test in case of non-normality of the data:
+  print(wilcox.test(accuracy, mu = acc_baseline, alternative = alt_label))
+}
+```
+
+```{r, results="hold"}
+#dt_odd_peak <- calc_class_stim_acc(data = dt_pred, mask_label = "cv")
+#dt_odd_peak_hpc <- calc_class_stim_acc(data = dt_pred, mask_label = "cv_hpc")
+dt_odd_peak <- calc_max_prob_acc(data = dt_pred, mask_label = "cv")
+dt_odd_peak_hpc <- calc_max_prob_acc(data = dt_pred, mask_label = "cv_hpc")
+decoding_accuracy(
+  accuracy = subset(dt_odd_peak, classification == "ovr")$mean_acc,
+  alt_label = "greater")
+decoding_accuracy(
+  accuracy = subset(dt_odd_peak_hpc, classification == "ovr")$mean_accuracy,
+  alt_label = "two.sided")
+```
+
+```{r, echo=FALSE, class.source=NULL, fig.width=1, fig.height=3}
+plot_odd_peak <- function(data) {
+  plot.odd = ggplot(data = data, aes(
+    x = "mean_acc", y = as.numeric(mean_accuracy))) +
+    geom_bar(stat = "summary", fun = "mean", fill = "lightgray") +
+    geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
+                 color = "black", fill = "lightgray", alpha = 0.5,
+                 inherit.aes = TRUE, binwidth = 2) +
+    geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+    ylab("Accuracy (%)") + xlab("Condition") +
+    geom_hline(aes(yintercept = 20), linetype = "dashed", color = "black") +
+    scale_y_continuous(labels = label_fill(seq(0, 100, 20), mod = 1), breaks = seq(0, 100, 20)) +
+    coord_capped_cart(left = "both", expand = TRUE, ylim = c(0, 100)) +
+    theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+    theme(axis.title.x = element_blank(), axis.text.x = element_blank()) +
+    annotate("text", x = 1, y = 15, label = "Chance", color = "black",
+             size = rel(2.5), family = "Helvetica", fontface = "plain") +
+    theme(panel.border = element_blank(), axis.line = element_line()) +
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+  return(plot.odd)
+}
+fig_odd_peak <- plot_odd_peak(subset(dt_odd_peak, classification == "ovr"))
+fig_odd_peak_hpc <- plot_odd_peak(subset(dt_odd_peak_hpc, classification == "ovr"))
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_average_decoding.pdf",
+       plot = fig_odd_peak, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", height = 5, width = 2)
+```
+
+### Fold-wise decoding accuracy:
+
+```{r, results="hold", echo=TRUE}
+dt_odd_peak_run = dt_pred %>%
+  # select data for the oddball peak decoding
+  # leave out the redundant "other" class predictions:
+  filter(test_set == "test-odd_peak" & class != "other" & mask == "cv") %>%
+  # filter out excluded participants:
+  filter(!(id %in% sub_exclude)) %>%
+  setDT(.) %>%
+  # calculate average decoding accuracy for every participant and classification:
+  .[, by = .(classification, id, run_study, trial, stim), .(
+    max_prob_label = class[which.max(probability)],
+    num_classes = .N
+  )] %>%
+  # check if there are five classifier predictions per trial:
+  verify(num_classes == 5) %>%
+  # determine accuracy if label with highest probability matches stimulus:
+  .[, "accuracy" := ifelse(stim == max_prob_label, 1, 0)]
+# print results table:
+rmarkdown::paged_table(dt_odd_peak_run)
+```
+
+```{r, results="hold", echo=TRUE}
+# calculate average decoding accuracy for every participant and classification:
+dt_odd_peak_run_mean <- dt_odd_peak_run %>%
+  .[, by = .(classification, id, run_study), .(
+    mean_accuracy = mean(accuracy) * 100,
+    num_trials = length(unique(trial))
+  )] %>%
+  # verify if the number of participants matches for every classification and run:
+  verify(.[, by = .(classification, run_study),
+           .(num_subs = .N)]$num_subs == 36) %>%
+  setorder(., classification, id, run_study)
+# print the table:
+rmarkdown::paged_table(dt_odd_peak_run_mean)
+```
+
+
+```{r, echo=FALSE, class.source=NULL}
+fig_odd_run = ggplot(data = subset(dt_odd_peak_run_mean, classification == "ovr"), aes(
+  x = run_study, y = as.numeric(mean_accuracy))) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightgray", color = "black") +
+  geom_dotplot(aes(color = "black", fill = id),
+               binaxis = "y", stackdir = "center", stackratio = 0.5, alpha = 0.5,
+               inherit.aes = TRUE, binwidth = 2) +
+  geom_line(aes(group = id, color = id)) +
+  geom_line(aes(group = 1), stat = "summary", fun = "mean", color = "black") +
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
+  ylab("Accuracy (%)") + xlab("Task run") +
+  geom_hline(aes(yintercept = 20), linetype = "dashed", color = "black") +
+  scale_y_continuous(labels = label_fill(seq(0, 100, 20), mod = 1), breaks = seq(0, 100, 20)) +
+  coord_capped_cart(left = "both", expand = TRUE, ylim = c(0, 100)) +
+  annotate("text", x = 8, y = 16, label = "Chance", color = "black",
+           size = rel(2.5), family = "Helvetica", fontface = "plain") +
+  theme(legend.position = "none") +
+  theme(panel.border = element_blank()) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_odd_run
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_average_decoding_run.pdf",
+       plot = fig_odd_run, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", height = 3, width = 5)
+```
+
+```{r, results="hold"}
+lme_odd_peak_run <- lmerTest::lmer(
+  mean_accuracy ~ run_study + (1 | id), control = lcctrl,
+  data = subset(dt_odd_peak_run_mean, classification == "ovr")
+)
+summary(lme_odd_peak_run)
+anova(lme_odd_peak_run)
+emmeans_results = emmeans(lme_odd_peak_run, list(pairwise ~ run_study))
+emmeans_results
+```
+
+## Multivariate decoding time courses
+
+We calculate the multivariate decoding time courses:
+
+```{r, echo=TRUE}
+dt_odd_long_sub = dt_pred %>%
+  # select data for the oddball long decoding
+  # leave out the redundant "other" class predictions:
+  filter(test_set == "test-odd_long" & class != "other" & mask == "cv") %>% 
+  # filter out excluded participants:
+  filter(!(id %in% sub_exclude)) %>% setDT(.) %>%
+  # average across stimuli and runs for each participant
+  # create an index for the true stimulus presented on each trial:
+  .[, by = .(classification, id, seq_tr, class, stim), .(
+    num = .N,
+    mean_prob = mean(probability * 100),
+    current_stim = as.numeric(class == unique(stim))
+  )]
+
+dt_odd_long_mean = dt_odd_long_sub %>% 
+  # average across participants:
+  .[, by = .(classification, seq_tr, class, stim, current_stim), .(
+    mean_prob = mean(mean_prob),
+    num_subs = .N,
+    sem_upper = (mean(mean_prob) + (sd(mean_prob)/sqrt(.N))),
+    sem_lower = (mean(mean_prob) - (sd(mean_prob)/sqrt(.N)))
+  )] %>%
+  # create an additional variable that expresses time in seconds:
+  mutate(time = (seq_tr - 1) * 1.25) %>%
+  # check if the number of participants is correct:
+  verify(all(num_subs == 36))
+```
+
+```{r, echo = FALSE, class.source = NULL}
+plot.odd.long = ggplot(data = subset(dt_odd_long_mean, classification == "ovr"), aes(
+  x = as.factor(seq_tr), y = as.numeric(mean_prob))) +
+  facet_wrap(~ as.factor(stim)) +
+  geom_line(data = subset(dt_odd_long_sub, classification == "ovr"), aes(
+    group = as.factor(interaction(id, class)), color = fct_rev(as.factor(current_stim))), alpha = 0.0) +
+  geom_line(data = subset(dt_odd_long_sub, classification == "ovr" & current_stim == 0), aes(
+    group = as.factor(interaction(id, class)), color = fct_rev(as.factor(current_stim))), alpha = 0.3) +
+  geom_line(data = subset(dt_odd_long_sub, classification == "ovr" & current_stim == 1), aes(
+    group = as.factor(interaction(id, class)), color = fct_rev(as.factor(current_stim))), alpha = 0.3) +
+  geom_ribbon(
+    data = subset(dt_odd_long_mean, classification == "ovr"),
+    aes(ymin = sem_lower, ymax = sem_upper, fill = fct_rev(as.factor(current_stim)),
+        group = as.factor(class)), alpha = 0.0, color = NA) +
+  geom_line(
+    data = subset(dt_odd_long_mean, classification == "ovr", alpha = 0),
+    aes(color = fct_rev(as.factor(current_stim)), group = as.factor(class))) +
+  geom_ribbon(
+    data = subset(dt_odd_long_mean, classification == "ovr" & current_stim == 1),
+    aes(ymin = sem_lower, ymax = sem_upper, fill = fct_rev(as.factor(current_stim)),
+        group = as.factor(class)), alpha = 0.3, color = NA) +
+  geom_line(
+    data = subset(dt_odd_long_mean, classification == "ovr" & current_stim == 1),
+    aes(color = fct_rev(as.factor(current_stim)), group = as.factor(class))) +
+  ylab("Probability (%)") + xlab("Time from stimulus onset (TRs)") +
+  scale_fill_manual(name = "Classified class", values = c("black", "lightgray"), labels = c("true", "other")) +
+  scale_color_manual(name = "Classified class", values = c("black", "lightgray"), labels = c("true", "other")) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 80)) +
+  theme(legend.position = c(1, 0), legend.justification = c(1, 0)) +
+  #theme(legend.position = c(0.95, 0.8), legend.justification = c(1, 0)) +
+  #theme(legend.title = element_text(size = 8), legend.text = element_text(size = 8)) +
+  #theme(legend.key.size = unit(0.7, "line")) +
+  scale_x_discrete(labels = label_fill(seq(0, 7, 1), mod = 1), breaks = seq(0, 7, 1)) +
+  guides(color = guide_legend(ncol = 2), fill = guide_legend(ncol = 2)) +
+  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
+  theme(panel.border = element_blank(), axis.line = element_line()) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+#theme(strip.text.x = element_blank())
+plot.odd.long
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_single_trial_activation_cat.pdf",
+       plot = plot.odd.long, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 3.5, height = 3)
+```
+
+We compare the mean classification probability of the current stimulus
+versus the mean of all other stimuli for each TR:
+
+```{r}
+dt_odd_long_mean_stat = dt_pred %>%
+  # select data for the oddball long decoding
+  # leave out the redundant "other" class predictions:
+  filter(test_set == "test-odd_long" & class != "other" & mask == "cv") %>%
+  setDT(.) %>%
+  # filter out excluded participants:
+  filter(!(id %in% sub_exclude)) %>% setDT(.) %>%
+  # average across stimuli and runs for each participant
+  # create a new variable that indicated whether stimulus is current or not:
+  .[, by = .(classification, id, seq_tr, class, stim), .(
+    num_stim = .N,
+    mean_prob = mean(probability * 100),
+    stim_type = ifelse(class == unique(stim), "current", "other")
+  )] %>%
+  verify(num_stim <= 96) %>%
+  # average across stimulus type:
+  .[, by = .(classification, id, seq_tr, stim, stim_type), .(
+    num_class = .N,
+    mean_prob = mean(mean_prob)
+  )] %>%
+  verify(num_class %in% c(1, 4)) %>%
+  select(., -num_class) %>%
+  # turn into wide format:
+  spread(key = stim_type, value = mean_prob) %>% setDT(.) %>%
+  # calculate a paired t-test at every TR for each unique stimulus to
+  # compare probability of the current vs. the mean other class probabilities:
+  .[, by = .(classification, seq_tr, stim), {
+    results = t.test(current, other, paired = TRUE, alternative = "two.sided")
+    list(
+      tvalue = results$statistic,
+      df = results$parameter,
+      pvalue = results$p.value,
+      cohens_d = (mean(current) - mean(other)) / sd(current - other),
+      num_subs = .N,
+      mean_current = mean(current),
+      mean_other = mean(other),
+      pvalue_round = round_pvalues(results$p.value)
+    )
+  }] %>%
+  # ajdust the p-value for multiple comparisons using Bonferroni correction:
+  .[, by = .(classification), ":=" (
+    num_comp = .N,
+    pvalue_adjust = p.adjust(pvalue, method = "bonferroni", n = .N)
+  )] %>%
+  # check if correction was done for 5 (stimuli) by 7 (TRs) = 35 comparisons:
+  verify(all(num_comp == 5 * 7)) %>%
+  # verify if number of participants matches:
+  verify(all(num_subs == 36)) %>%
+  # check if degrees-of-freedom = n - 1
+  verify(all(df == num_subs - 1)) %>%
+  # round the bonferroni-adjusted p-values for clarity:
+  mutate(pvalue_adjust_round = round_pvalues(pvalue_adjust)) %>%
+  # sort the datatable according to classification, stimulus and TR:
+  setorder(., classification, stim, seq_tr) %>%
+  # only look at the fourth TR where probabilities are expected to peak
+  filter(seq_tr == 4 & classification == "ovr")
+# print the data table:
+dt_odd_long_mean_stat
+```
+
+```{r, echo=FALSE, class.source = NULL}
+plot_grid(fig_odd_peak, plot.odd.long, labels = c('a', 'b'), ncol = 2,
+          rel_widths = c(1.5, 5), hjust = c(0, 0), label_fontface = "bold")
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 6.5, height = 3.5)
+```
+
+# Response filters
+
+## Functions
+
+We define the sine wave response function:
+
+```{r}
+sine_truncated <- function(params, time) {
+  if (!is.list(params)) {
+    params = as.list(params)
+    names(params) = c('frequency', 'amplitude', 'shift', 'baseline')
+  }
+  y = rep(0, 13)
+  y = params$amp/2 * sin(2*pi*params$freq*time - 2*pi*params$freq*params$shift - 0.5*pi) + params$baseline + params$amp/2
+  # flatten response function after one cycle:
+  y[time < (params$shift)] = params$baseline
+  y[time > (params$shift + 1/params$freq)] = params$baseline  
+  return(y) 
+}
+```
+
+We define a function to evaluate during optimization:
+
+```{r}
+sine_truncated_eval = function(params, time, data) {
+  y = sine_truncated(params, time)
+  SSE = sum((data - y)^2)
+  return(SSE)
+}
+```
+
+## Mean parameters
+
+We calculate the multivariate decoding time courses for each stimulus class: 
+
+```{r}
+# calculate mean probability for every stimulus for every TR:
+dt_odd_long_mean_class = dt_pred %>%
+  # filter for oddball long predictions and only select ovr classifier:
+  filter(test_set == "test-odd_long" & class != "other" &
+           classification == "ovr" & mask == "cv") %>%
+  # filter out excluded participants:
+  filter(!(id %in% sub_exclude)) %>% setDT(.) %>%
+  # select only predictions for the class currently shown on any given trial:
+  filter(class == stim) %>% setDT(.) %>%
+  # average the probability across trials
+  .[, by = .(id, classification, stim, seq_tr), .(
+    mean_probability = mean(probability, na.rm = TRUE)
+  )]
+```
+
+We fit the truncated sine wave response function to data from every participant:
+
+```{r, results="hold"}
+# set optimization parameters:
+opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-8, "maxeval" = 1.0e+5)
+default_params = c(0.2, 0.6, 0, 0.1)
+lower_bounds = c(0.01, 0.1, 0, 0)
+upper_bounds = c(0.5, 1, 5, 0.3)
+time = 0:6
+
+dt_odd_long_fit = dt_odd_long_mean_class %>%
+  # fit the truncated sine wave to probabilities of every decoding timecourse:
+  .[, by = .(id, classification, stim), {
+    res <- nloptr(
+      x0 = default_params, eval_f = sine_truncated_eval, time = time,
+      data = mean_probability, lb = lower_bounds, ub = upper_bounds, opts = opts)
+    list(
+      num_trs = .N,
+      frequency = res$solution[1],
+      wavelength = 1/res$solution[1],
+      amplitude = res$solution[2],
+      shift = res$solution[3],
+      baseline = res$solution[4],
+      params = list(res$solution)
+    )}] %>%
+  verify(all(num_trs == length(time)))
+# print the mean model parameters:
+summary(dt_odd_long_fit[, c("frequency", "wavelength", "amplitude", "shift", "baseline")])
+# calculate the mean parameters across all participants to be used later:
+mean_parameters = dt_odd_long_fit %>%
+  # average the fitted parameters across participants:
+  .[, by = .(classification), .(
+    mean_freq = mean(frequency),
+    mean_wavelength = mean(wavelength),
+    mean_amplitude = mean(amplitude),
+    mean_shift = mean(shift),
+    mean_baseline = mean(baseline)
+  )]
+```
+
+We fit the sine response function for every participant using individual parameters:
+
+```{r}
+dt_odd_long_fit_single = dt_odd_long_fit %>%
+  # calculate a sine-wave respone function timecourse for every participant:
+  .[, by = .(id, classification, stim), .(
+    csine = sine_truncated(params = unlist(params), seq(0, 6, 0.1))
+  )] %>%
+  # add a counter that is used for plotting below:
+  .[, by = .(classification, id, stim), ":=" (
+    t = seq(0, 6, 0.1))]
+```
+
+We plot the single sine wave fits for three example participants (supplement):
+
+```{r, echo=FALSE}
+# set seed to reproduce random id sampling:
+set.seed(18)
+num_sub_select = 3
+# select random example participants:
+select_id = sample(x = unique(dt_odd_long_fit_single$id), size = num_sub_select)
+fig_s1 = ggplot(data = subset(dt_odd_long_fit_single, id %in% select_id),
+                aes(x = t, y = csine * 100)) +
+  geom_point(aes(color = "Model"), alpha = 0.5) +
+  geom_line(data = subset(dt_odd_long_mean_class, id %in% select_id),
+            aes(x = (seq_tr - 1), y = mean_probability * 100, color = "Data")) +
+  geom_point(data = subset(dt_odd_long_mean_class, id %in% select_id),
+             aes(x = (seq_tr - 1), y = mean_probability * 100, color = "Data")) +
+  scale_colour_manual(name = "", values = c("gray", "black")) +
+  facet_grid(vars(as.factor(id)), vars(as.factor(stim))) +
+  coord_capped_cart(left = "both", bottom = "both") +
+  xlab("Time from stimulus onset (in TRs)") + ylab("Probability (%)") +
+  scale_x_continuous(labels = label_fill(seq(1, 7, 1), mod = 1), breaks = seq(0, 6, 1)) +
+  theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0 ,0, 0),
+        legend.box.margin = margin(t = 0, r = 0, b = -10, l = 0)) +
+  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2))) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_s1
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highsspeed_plot_decoding_oddball_single_sine_fits.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 6, height = 4)
+```
+
+We calculate the mean shape of the sine wave response function across participants:
+
+```{r, echo=TRUE}
+dt_odd_long_fit_mean = dt_odd_long_fit %>%
+  # average the fitting parameters across participants:
+  .[, by = .(classification, stim), .(
+    num_subs = .N,
+    mean_freq = mean(frequency),
+    mean_amplitude = mean(amplitude),
+    mean_shift = mean(shift),
+    mean_baseline = mean(baseline)
+  )] %>% verify(all(num_subs == 36)) %>%
+  .[, by = .(classification, stim), .(
+    csine = sine_truncated(params = c(mean_freq, mean_amplitude, mean_shift, mean_baseline),
+      seq(0, 6, 0.1)))] %>%
+  .[, by = .(classification, stim), ":=" (
+    t = seq(0, 6, 0.1))]
+```
+
+```{r, echo = FALSE}
+fig_s2 = ggplot(data = dt_odd_long_mean_class) +
+  geom_line(data = dt_odd_long_mean_class,
+            aes(x = (seq_tr - 1), y = mean_probability * 100, group = as.factor(id),
+                color = "Data"), alpha = 0.3) +
+  geom_line(data = dt_odd_long_fit_mean, aes(x = t, y = csine * 100, color = "Model"),
+            size = 1) +
+  facet_wrap(~ as.factor(stim), nrow = 1) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(0, 80)) +
+  xlab("Time from stimulus onset (in TRs)") + ylab("Probability (%)") +
+  scale_colour_manual(name = "", values = c("gray", "black"), guide = FALSE) +
+  scale_x_continuous(labels = label_fill(seq(1, 7, 1), mod = 1), breaks = seq(0, 6, 1)) +
+  #theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+  theme(legend.position = "bottom", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
+        legend.box.margin = margin(t = -10, r = 0, b = 0, l = 0)) +
+  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2))) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_s2
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highsspeed_plot_decoding_oddball_mean_sine_fits.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5, height = 3)
+```
+
+```{r}
+plot_grid(fig_s1, fig_s2, nrow = 2, ncol = 1, hjust = c(0, 0),
+          rel_heights = c(4, 2), labels = c("a", "b"), label_fontface = "bold")
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highsspeed_plot_decoding_oddball_supplement.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 7)
+```
+
+
+We evaluate the response function for two time-shifted events:
+
+```{r}
+# horizontal phase shift (in TRs) that will be added to the second sine wave:
+add_shift = 0.5
+time = seq(0, 8, 0.1)
+dt_odd_long_fit_shift = dt_odd_long_fit %>%
+  # average the fitted parameters across participants:
+  .[, by = .(classification), .(
+    mean_freq = mean(frequency),
+    mean_amplitude = mean(amplitude),
+    mean_shift = mean(shift),
+    mean_baseline = mean(baseline)
+  )] %>%
+  # add variable that adds shift (in TRs) for the second sine wave:
+  mutate(mean_shift_shifted = mean_shift + add_shift) %>%
+  mutate(amp = mean_amplitude * sin(add_shift * mean_freq * pi)) %>%
+  mutate(freq = mean_freq / (add_shift * mean_freq + 1)) %>% setDT(.) %>%
+  # calculate first and second response filter time-courses
+  .[, by = .(classification), .(
+    first = sine_truncated(params = c(mean_freq, mean_amplitude, mean_shift, mean_baseline), time),
+    second = sine_truncated(params = c(mean_freq, mean_amplitude, mean_shift_shifted, mean_baseline), time),
+    cosine = amp * sin(2 * pi * time * freq - 2 * pi * freq * mean_shift),
+    t = time
+  )] %>%
+  # shift the cosine wave by 0.6 (only for illustrational purposes):
+  mutate(cosine = cosine - 0.6) %>% setDT(.) %>%
+  # signify the tails of the sine wave (that will otherwise be flattened):
+  .[time < mean_parameters$mean_shift, ":=" (
+    cosine_tails = cosine,
+    cosine = NA)] %>%
+  .[time > (mean_parameters$mean_shift + add_shift + 1/mean_parameters$mean_freq), ":=" (
+    cosine_tails = cosine,
+    cosine = -NA)] %>%
+  # calculate the difference between the first and second wave
+  # adjust by 0.2 for illustrational purposes only:
+  mutate(difference = first - second - 0.2) %>%
+  gather(key = "event", value = "probability", -classification, -t)
+```
+
+We calculate the mean probability timecourses for the true stimulus class across participants:
+
+```{r, ech0=TRUE}
+# calculate the mean decoding time course across all classes and participants:
+dt_odd_long_mean = dt_pred %>%
+  # filter for oddball multivariate data and one-versus-rest classification only:
+  filter(test_set == "test-odd_long" & class != "other" &
+           classification == "ovr" & mask == "cv") %>%
+  # filter out excluded participants:
+  filter(!(id %in% sub_exclude)) %>%
+  # filter for all trials where the predicted class matches the true stimulus:
+  filter(class == stim) %>% setDT(.) %>%
+  # calculate the mean decoding time courses for each participant:
+  .[, by = .(id, classification, stim, seq_tr), .(
+    mean_probability = mean(probability, na.rm = TRUE) * 100)] %>%
+  # average mean decoding time courses across participants:
+  .[, by = .(classification, stim, seq_tr), .(
+    mean_probability = mean(mean_probability),
+    num_subs = .N,
+    sem_upper = mean(mean_probability) + (sd(mean_probability)/sqrt(.N)),
+    sem_lower = mean(mean_probability) - (sd(mean_probability)/sqrt(.N))
+  )] %>% verify(all(num_subs == 36))
+```
+
+```{r, echo=FALSE}
+fig_a = ggplot(data = dt_odd_long_mean, aes(
+  x = (seq_tr - 1), y = mean_probability, group = stim)) +
+  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.1, color = NA) +
+  geom_line(mapping = aes(color = "Data"), alpha = 1) +
+  geom_point(mapping = aes(color = "Data"), alpha = 1, pch = 16) +
+  geom_line(data = subset(dt_odd_long_fit_shift, event == "first"),
+            aes(x = t, y = probability * 100, color = "Model"),
+            size = 2, inherit.aes = FALSE) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(0, 100),
+                    xlim = c(0, 6), expand = TRUE) +
+  xlab("Time (TRs)") + ylab("Probability (%)") +
+  scale_colour_manual(name = "", values = c("gray", "black")) +
+  scale_fill_manual(name = "", values = c("gray", "black")) +
+  scale_x_continuous(labels = label_fill(seq(1,7,1), mod = 1), breaks = seq(0,6,1)) +
+  scale_y_continuous(labels = label_fill(seq(0, 80, 20), mod = 1), breaks = seq(0, 80, 20)) +
+  theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0 ,0, 0),
+        legend.box.margin = margin(t = 0, r = 0, b = -60, l = 0)) +
+  guides(color = guide_legend(ncol = 2)) +
+  # add the shift parameter:
+  geom_segment(aes(x = 0, xend = mean_parameters$mean_shift, yend = 65, y = 65),
+               color = "darkgray", linetype = "dashed") +
+  annotate("text", x = mean_parameters$mean_shift/2, y = 70,
+           label = paste("italic(d)"), color = "darkgray", hjust = 0.5, parse = TRUE) +
+  # add the wavelength parameter:
+  geom_segment(aes(x = mean_parameters$mean_shift, xend = mean_parameters$mean_shift + 1/mean_parameters$mean_freq,
+                   yend = 70, y = 70), color = "darkgray", linetype = "dashed") +
+  annotate("text", x = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq), y = 75,
+           label = paste("italic(lambda)"), color = "darkgray", hjust = 0.5, parse = TRUE) +
+  # add the amplitude parameter:
+  geom_segment(aes(x = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq),
+                   xend = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq),
+                   y = mean_parameters$mean_baseline * 100,
+                   yend = (mean_parameters$mean_baseline + mean_parameters$mean_amplitude) * 100),
+               color = "darkgray", linetype = "dashed") +
+  annotate("text", x = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq) - 0.25,
+           y = (mean_parameters$mean_baseline + mean_parameters$mean_amplitude / 2) * 100,
+           label = paste("italic(A)"), color = "darkgray", parse = TRUE) + 
+  # add the baseline parameter:
+  geom_segment(aes(x = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq) - 0.2,
+                   xend = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq) - 0.2,
+                   y = 0, yend = mean_parameters$mean_baseline * 100),
+               color = "darkgray", linetype = "dashed") +
+  annotate("text", x = mean_parameters$mean_shift + 1/(2 * mean_parameters$mean_freq) - 0.25 - 0.2,
+           y = mean_parameters$mean_baseline / 2 * 100,
+           label = paste("italic(b)"), color = "darkgray", parse = TRUE) +
+  annotate("text", x = 6, y = 0, label = "1 TR = 1.25 s",
+             hjust = 1, size = rel(2)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_a
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_fig1.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 3, height = 3.1)
+```
+
+## Illustration of response model and difference dynamics 
+
+```{r, echo=TRUE}
+# get the average horizonzal shift of the first sine wave:
+t_first = mean(dt_odd_long_fit$shift)
+# calculate the shift of the second sine wave (shift + half a wavelength)
+t_second = mean(dt_odd_long_fit$shift) + add_shift + 1/mean(dt_odd_long_fit$freq)
+# calculate the time point of cross over between the two sine functions:
+t_crossover = 0.5/mean(dt_odd_long_fit$freq) + mean(dt_odd_long_fit$shift) + add_shift/2
+# create a vector of time steps:
+time = seq(0, 8, 0.1)
+
+max_prob = max(dt_odd_long_fit_shift$probability[dt_odd_long_fit_shift$event == "difference"], na.rm = TRUE)
+t_max_diff = dt_odd_long_fit_shift$t[dt_odd_long_fit_shift$probability == max_prob & !is.na(dt_odd_long_fit_shift$probability)]
+a = dt_odd_long_fit_shift$probability[dt_odd_long_fit_shift$t == t_max_diff & dt_odd_long_fit_shift$event == "first"]
+```
+
+
+```{r, echo=TRUE}
+# select colors used for plotting:
+colors = c("darkgray", "darkgray", "black", "dodgerblue", "red", "black")
+# plot sine wave difference illustration:
+fig_b = ggplot(data = dt_odd_long_fit_shift, aes(x = time, y = probability * 100, group = event, color = event)) +
+  # create rectangles to indicate the forward and backward phase:
+  annotate("rect", xmin = t_first, xmax = t_crossover, ymin = -80, ymax = 95, alpha = 0.05, fill = "dodgerblue") +
+  annotate("rect", xmin = t_crossover, xmax = t_second, ymin = -80, ymax = 95, alpha = 0.05, fill = "red") +
+  # plot the onset of the first event:
+  geom_vline(xintercept = t_first, color = "gray", linetype = "dashed") +
+  # plot the offset of the second event (d + lambda + s in manuscript text):
+  geom_vline(xintercept = t_second, color = "gray", linetype = "dashed") +
+  # plot the crossover (d + 0.5 * (lambda + s) in manuscript text)
+  geom_vline(xintercept = t_crossover, color = "gray", linetype = "dashed") +
+  # plot the horizontal line for the difference time course:
+  geom_hline(yintercept = -20, color = "gray") +
+  # plot the horizontal line for the cosine wave:
+  geom_hline(yintercept = -60, color = "gray") +
+  # plot the first and second event time courses:
+  geom_line(aes(x = t, linetype = fct_rev(event)), na.rm = TRUE) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(-80, 85)) +
+  xlab("Time (in TRs)") + ylab("Probability (a.u.)") +
+  scale_colour_manual(name = "Serial event", values = colors) +
+  scale_linetype_manual(values = c(rep("solid", 3), "dashed", "solid")) +
+  scale_x_continuous(labels = c(label_fill(seq(1,7,1), mod = 1), rep("", 2)), breaks = seq(0,8,1)) +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_line(colour = "white"),
+        axis.line.y = element_line(colour = "white")) +
+  theme(legend.position = "none") +
+  annotate("label", x = 0.5, y = 45, label = "~1^'st'~event", color = "dodgerblue", parse = TRUE, size = 3) +
+  annotate("label", x = 0.5, y = 30, label = "~2^'nd'~event", color = "red", parse = TRUE, size = 3) +
+  annotate("label", x = 0.5, y = -7, label = "Difference", color = "black", size = 3) +
+  annotate("label", x = 0.5, y = -35, label = "Difference\n(no flattening)", color = "darkgray", size = 3) +
+  # add annotation for forward period:
+  geom_segment(aes(x = t_first, xend = t_crossover, yend = 85, y = 85,
+                   colour = "segment"), color = "dodgerblue") +
+  annotate("label", x = t_first + (t_crossover - t_first)/2, y = 85, label = "Forward period",
+           color = "dodgerblue", fill = "white", hjust = 0.5) +
+  # add annotations for backward period:
+  geom_segment(aes(x = t_crossover, xend = t_second, y = 85, yend = 85, 
+                   colour = "segment"), color = "red") +
+  annotate("label", x = t_crossover + (t_second - t_crossover)/2, y = 85, label = "Backward period",
+           color = "red", fill = "white", hjust = 0.5) +
+  # add annotation for early forward phase
+  geom_segment(aes(x = t_first, xend = t_first + (t_crossover - t_first)/2, yend = 70, y = 70,
+                   colour = "segment"), color = "gray") +
+  annotate("label", x = (t_first + (t_crossover - t_first)/4),
+           y = 70, label = "early",
+           color = "gray", fill = "white", hjust = 0.5) +
+  # add annotation for late forward phase
+  geom_segment(aes(x = t_first + (t_crossover - t_first)/2, xend = t_crossover,
+                   yend = 68, y = 68, colour = "segment"), color = "gray") +
+  annotate("label", x = (t_first + (t_crossover - t_first)/4 * 3),
+           y = 68, label = "late",
+           color = "gray", fill = "white", hjust = 0.5) +
+  # add annotation for early backward phase
+  geom_segment(aes(x = t_crossover, xend = t_crossover + (t_second - t_crossover)/2,
+                   yend = 70, y = 70, colour = "segment"), color = "gray") +
+  annotate("label", x = (t_crossover + (t_second - t_crossover)/4),
+           y = 70, label = "early", color = "gray", fill = "white", hjust = 0.5) +
+  # add annotation for late backward phase
+  geom_segment(aes(x = t_crossover + (t_second - t_crossover)/2, xend = t_second,
+                   yend = 68, y = 68, colour = "segment"), color = "gray") +
+  annotate("label", x = (t_crossover + (t_second - t_crossover)/4 * 3),
+           y = 68, label = "late", color = "gray", fill = "white", hjust = 0.5) +
+  # add annotation for delta:
+  geom_segment(aes(x = t_first + (t_crossover - t_first)/2,
+                   xend = t_first + (t_crossover - t_first)/2 + add_shift,
+                   y = 35 , yend = 35, colour = "segment"), color = "darkgray", linetype = "dotted") +
+  annotate("text", x = t_first + (t_crossover - t_first)/2 - 0.5 + add_shift / 2, y = 36,
+           label = "delta", color = "darkgray", hjust = 0.5, parse = TRUE) +
+  # add annotation for TRs:
+  annotate("text", x = 8, y = -80, label = "1 TR = 1.25 s",
+             hjust = 1, size = rel(2)) +
+  theme(axis.line.x = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_b
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_figb.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5.5, height = 4.5)
+```
+
+```{r, echo = TRUE}
+ampfun = function(s, A) {A*cos(s*mean(dt_odd_long_fit$freq)*pi - 0.5*pi)}
+cs = seq(0, 0.5/mean(dt_odd_long_fit$freq), 0.01)
+ba = data.table(cs = cs, diff = ampfun(cs, 1))
+fig_c = ggplot(data = ba, aes(x = cs, y = diff)) +
+  geom_line() +
+  xlab("Time-shift (in TRs)") + ylab("Max. diff. in amplitude") +
+  coord_capped_cart(left = "both", bottom = "both", xlim = c(0,3)) +
+  scale_x_continuous(labels = c("0", rep("", 2), "Resp. peak"), breaks = seq(0,3)) +
+  scale_y_continuous(labels = c("0", rep("", 3), "Max")) +
+  #theme(plot.margin = unit(c(t = 10, r = 30, b = 1, l = 1), "pt")) +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_c
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_fig3.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 3, height = 2.5)
+```
+
+```{r, echo=TRUE, fig.width = 7, fig.height = 3}
+plot_grid(fig_a, fig_b, ncol = 2, hjust = c(0,0),
+          labels = c("c", "d", "e"), rel_widths = c(2, 4),
+          label_fontface = "bold", label_size = 14)
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 3)
+```
+
+
+### Forward and backward period for different speeds
+
+Here, we calculate the expected forward and backward periods for two events
+separated by different speed levels (different values for delta).
+
+```{r}
+calc_periods = function(speed, stim_dur = 0.1, num_stim = 5, tr = 1.25){
+  # mean wavelength based on fitted models, in TRs, round to two digits:
+  lambda = round(mean_parameters$mean_wavelength, 2)
+  # mean phase-shift based on fitted models, in TRs, round to two digits:
+  phase_shift = round(mean_parameters$mean_shift, 2)
+  # delta, in sec (time shift depending on speed)
+  delta_sec = stim_dur * (num_stim - 1) + (num_stim - 1) * speed
+  # delta, in trs:
+  delta_tr = delta_sec / tr
+  # end of forward period, in TRs:
+  fwd_end = 0.5 * (lambda + delta_tr) + phase_shift
+  # end of the backward period, in TRs:
+  bwd_end = lambda + phase_shift + delta_tr
+  # forward period, in TRs:
+  forward = list(seq(round(phase_shift) + 1, round(fwd_end - 0.5) + 1))
+  # backward period, in TRs:
+  backward = list(seq(round(fwd_end + 0.5) + 1, round(bwd_end) + 1))
+  # entire relevant trial period, in rounded TRs:
+  trial_period = list(seq(round(phase_shift) + 1, round(lambda + phase_shift + delta_tr) + 1))
+  # save results as a data table and return results:
+  dt = data.table(speed, lambda, delta_sec, delta_tr, fwd_end, bwd_end, forward, backward, trial_period)
+  return(dt)
+}
+# get the relevant timeperiods for each sequence speed condition:
+speeds = c(0.032, 0.064, 0.128, 0.512, 2.048)
+dt_periods = do.call(rbind, lapply(speeds, calc_periods))
+dt_periods
+```
+
+```{r, eval=FALSE}
+save(dt_periods, file = here::here('data', "dt_periods.Rdata"))
+```
+
+```{r}
+time = seq(0, 12, 0.1)
+speeds = c(0.032, 0.064, 0.128, 0.512, 2.048)
+stim_dur = 0.1
+
+dt_odd_seq_sim = dt_odd_long_fit %>% setDT(.) %>%
+  # average the fitted parameters across stimuli for each participant:
+  .[, by = .(classification, id), .(
+    mean_freq = mean(frequency),
+    mean_amplitude = mean(amplitude),
+    mean_shift = mean(shift),
+    mean_baseline = mean(baseline)
+  )] %>%
+  # repeat rows once for each speed condition (5 repetitions in total):
+  .[rep(seq(1, nrow(.)), length(speeds))] %>%
+  # add the different speed conditions for every participant:
+  .[, by = .(classification, id), ":=" (speed = speeds, num_events = 1)] %>%
+  # repeat rows once for each hypothetical event (here, 2 events):
+  .[rep(seq(1, nrow(.)), num_events)] %>%
+  # add a counter for the number of events:
+  .[, by = .(classification, id, speed), ":=" (event = 5)] %>%
+  # calculate a speed-specific shift for each event:
+  .[, by = .(classification, id, speed, event), {
+    shift = (speed * (event - 1) + (event - 1) * stim_dur)/1.25
+    amp = mean_amplitude * sin(shift * 0.5 * mean_freq * pi)
+    freq = (1/(1/mean_freq + shift))
+    c_d = amp * sin(2 * pi * time * freq - 2 * pi * freq * mean_shift)
+    # flatten the tails of the response function
+    cidx = time < mean_shift | time > (mean_shift + (1 / freq))
+    c_d[cidx] = 0
+    # save the response function:
+    list(time = time, probability = c_d)
+  }] %>%
+  filter(classification == "ovr") %>% setDT(.)
+
+dt_odd_seq_sim_diff = dt_odd_seq_sim %>% 
+  .[, by = .(classification, speed, time), .(
+    num_subs = .N,
+    mean_difference = mean(probability),
+    sem_upper = mean(probability) + (sd(probability)/sqrt(.N)),
+    sem_lower = mean(probability) - (sd(probability)/sqrt(.N))
+  )] %>% verify(all(num_subs == 36))
+```
+
+```{r}
+fig_seq_sim_diff = ggplot(data = dt_odd_seq_sim_diff, mapping = aes(
+  x = time, y = as.numeric(mean_difference), color = as.factor(speed * 1000),
+  fill = as.factor(speed * 1000))) +
+  geom_hline(aes(yintercept = 0), linetype = "solid", color = "gray") +
+  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
+  geom_line() +
+  theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
+        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
+  xlab("Time from sequence onset (TRs)") + ylab("Probability difference") +
+  scale_colour_viridis(name = "Speed (ms)", discrete = TRUE, option = "cividis") +
+  scale_fill_viridis(name = "Speed (ms)", discrete = TRUE, option = "cividis") +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE,
+                    ylim = c(-0.4, 0.4), xlim = c(0, 12)) +
+  scale_x_continuous(labels = label_fill(seq(1, 13, 1), mod = 4), breaks = seq(0, 12, 1)) +
+  guides(color = guide_legend(nrow = 1)) +
+  geom_segment(aes(x = 0, xend = 0, y = 0.01, yend = 0.4),
+               arrow = arrow(length = unit(5, "pt")), color = "darkgray") +
+  geom_segment(aes(x = 0, xend = 0, y = -0.01, yend = -0.4),
+               arrow = arrow(length = unit(5, "pt")), color = "darkgray") +
+  annotate(geom = "text", x = 0.4, y = 0.2, label = "Forward order",
+           color = "darkgray", angle = 90, size = 3) +
+  annotate(geom = "text", x = 0.4, y = -0.2, label = "Backward order",
+           color = "darkgray", angle = 90, size = 3) +
+  annotate("text", x = 12, y = -0.4, label = "1 TR = 1.25 s",
+             hjust = 1, size = rel(2)) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+fig_seq_sim_diff
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_sequence_predictions.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5.5, height = 3)
+```
+
+
+```{r, echo=TRUE, fig.width=8, fig.height=3}
+upper = plot_grid(fig_odd_peak, plot.odd.long, fig_a, labels = c("a", "b", "c"), ncol = 3,
+                  rel_widths = c(0.8, 3.5, 2), label_fontface = "bold", hjust = c(0, 0))
+lower = plot_grid(fig_b, fig_seq_sim_diff, labels = c("d", "e"), nrow = 1,
+                  label_fontface = "bold", hjust = c(0, 0), rel_widths = c(0.45, 0.53))
+plot_grid(upper, lower, nrow = 2, ncol = 1, rel_heights = c(2.5, 3))
+```
+
+```{r, include=FALSE, eval=FALSE, echo=FALSE}
+ggsave(filename = "highspeed_plot_decoding_oddball_data.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 6.5)
+```
+
+
