@@ -1,8 +1,10 @@
-# Oddball
+## Decoding on slow trials
 
-## Initialization
+### Initialization
+
 We load the data and relevant functions:
-```{r, warning=FALSE, message=FALSE}
+
+```{r, warning=FALSE, message=FALSE, echo=TRUE}
 # find the path to the root of this project:
 if (!requireNamespace("here")) install.packages("here")
 if ( basename(here::here()) == "highspeed" ) {
@@ -16,8 +18,10 @@ source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
 ```
 
-## Decoding accuracy
-### Mean decoding accuracy
+### Decoding accuracy
+
+#### Mean decoding accuracy
+
 We calculate the mean decoding accuracy:
 
 ```{r, results="hold", echo=TRUE}
@@ -74,7 +78,8 @@ calc_max_prob_acc <- function(data, mask_label) {
 ```
 
 We print the results for the decoding accuracy:
-```{r, results="hold", warning=FALSE, message=FALSE}
+
+```{r, results="hold", warning=FALSE, message=FALSE, echo=TRUE}
 decoding_accuracy <- function(accuracy, alt_label){
   # print average decoding accuracy:
   print(sprintf("decoding accuracy: m = %0.2f %%", mean(accuracy)))
@@ -85,7 +90,6 @@ decoding_accuracy <- function(accuracy, alt_label){
           paste(round(range(accuracy),0), collapse = "-")))
   # define decoding accuracy baseline (should equal 20%):
   acc_baseline = 100/5
-  # TODO: with ensemble classifiers, does this have to be 0?
   print(sprintf("chance baseline = %d %%", acc_baseline))
   # perform effect size (cohen`s d)
   cohens_d = (mean(accuracy) - acc_baseline) / sd(accuracy)
@@ -113,7 +117,9 @@ decoding_accuracy(
   alt_label = "two.sided")
 ```
 
-```{r, echo=FALSE, class.source=NULL, fig.width=1, fig.height=3}
+We plot the mean decoding accuracy in occipito-temporal and hippocampal data:
+
+```{r, echo=TRUE, class.source=NULL, fig.width=1, fig.height=3}
 plot_odd_peak <- function(data) {
   plot.odd = ggplot(data = data, aes(
     x = "mean_acc", y = as.numeric(mean_accuracy))) +
@@ -140,6 +146,7 @@ plot_odd_peak <- function(data) {
 }
 fig_odd_peak <- plot_odd_peak(subset(dt_odd_peak, classification == "ovr"))
 fig_odd_peak_hpc <- plot_odd_peak(subset(dt_odd_peak_hpc, classification == "ovr"))
+fig_odd_peak; fig_odd_peak_hpc
 ```
 
 ```{r, include=FALSE, eval=FALSE, echo=FALSE}
@@ -149,6 +156,8 @@ ggsave(filename = "highspeed_plot_decoding_average_decoding.pdf",
 ```
 
 ### Fold-wise decoding accuracy:
+
+We calculate the mean decoding accuracy for each of the eight folds of the cross-validation procedure:
 
 ```{r, results="hold", echo=TRUE}
 dt_odd_peak_run = dt_pred %>%
@@ -266,7 +275,7 @@ dt_odd_long_mean = dt_odd_long_sub %>%
   verify(all(num_subs == 36))
 ```
 
-```{r, echo = FALSE, class.source = NULL}
+```{r, echo=FALSE, class.source=NULL}
 plot.odd.long = ggplot(data = subset(dt_odd_long_mean, classification == "ovr"), aes(
   x = as.factor(seq_tr), y = as.numeric(mean_prob))) +
   facet_wrap(~ as.factor(stim)) +
@@ -312,7 +321,7 @@ plot.odd.long
 ```
 
 ```{r, include=FALSE, eval=FALSE, echo=FALSE}
-ggsave(filename = "highspeed_plot_decoding_single_trial_activation_cat.pdf",
+ggsave(filename = "highspeed_plot_decoding_single_trial_activation.pdf",
        plot = plot.odd.long, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 3.5, height = 3)
 ```
@@ -390,11 +399,14 @@ plot_grid(fig_odd_peak, plot.odd.long, labels = c('a', 'b'), ncol = 2,
 ggsave(filename = "highspeed_plot_decoding_oddball.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 6.5, height = 3.5)
+ggsave(filename = "wittkuhn_schuck_figure_s2.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 6.5, height = 3.5)
 ```
 
-# Response filters
+## Response functions
 
-## Functions
+### Define response functions
 
 We define the sine wave response function:
 
@@ -423,7 +435,7 @@ sine_truncated_eval = function(params, time, data) {
 }
 ```
 
-## Mean parameters
+### Mean parameters
 
 We calculate the multivariate decoding time courses for each stimulus class: 
 
@@ -554,7 +566,7 @@ dt_odd_long_fit_mean = dt_odd_long_fit %>%
     t = seq(0, 6, 0.1))]
 ```
 
-```{r, echo = FALSE}
+```{r, echo=TRUE}
 fig_s2 = ggplot(data = dt_odd_long_mean_class) +
   geom_line(data = dt_odd_long_mean_class,
             aes(x = (seq_tr - 1), y = mean_probability * 100, group = as.factor(id),
@@ -594,8 +606,10 @@ plot_grid(fig_s1, fig_s2, nrow = 2, ncol = 1, hjust = c(0, 0),
 ggsave(filename = "highsspeed_plot_decoding_oddball_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 7, height = 7)
+ggsave(filename = "wittkuhn_schuck_figure_s4.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 7)
 ```
-
 
 We evaluate the response function for two time-shifted events:
 
@@ -724,7 +738,7 @@ ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_fig1.pdf",
        dpi = "retina", width = 3, height = 3.1)
 ```
 
-## Illustration of response model and difference dynamics 
+### Illustration of response model and difference dynamics 
 
 ```{r, echo=TRUE}
 # get the average horizonzal shift of the first sine wave:
@@ -740,7 +754,6 @@ max_prob = max(dt_odd_long_fit_shift$probability[dt_odd_long_fit_shift$event == 
 t_max_diff = dt_odd_long_fit_shift$t[dt_odd_long_fit_shift$probability == max_prob & !is.na(dt_odd_long_fit_shift$probability)]
 a = dt_odd_long_fit_shift$probability[dt_odd_long_fit_shift$t == t_max_diff & dt_odd_long_fit_shift$event == "first"]
 ```
-
 
 ```{r, echo=TRUE}
 # select colors used for plotting:
@@ -855,6 +868,8 @@ ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_fig3.pdf",
        dpi = "retina", width = 3, height = 2.5)
 ```
 
+We plot a combination of the previous plots:
+
 ```{r, echo=TRUE, fig.width = 7, fig.height = 3}
 plot_grid(fig_a, fig_b, ncol = 2, hjust = c(0,0),
           labels = c("c", "d", "e"), rel_widths = c(2, 4),
@@ -903,9 +918,15 @@ dt_periods = do.call(rbind, lapply(speeds, calc_periods))
 dt_periods
 ```
 
-```{r, eval=FALSE}
+We save the periods of interest for different speeds which will be used for the analysis of sequence and repetition trials:
+
+```{r}
 save(dt_periods, file = here::here('data', "dt_periods.Rdata"))
 ```
+
+### Probability differences at different speeds
+
+We plot the probability differences at different speeds:
 
 ```{r}
 time = seq(0, 12, 0.1)
@@ -1003,6 +1024,9 @@ plot_grid(upper, lower, nrow = 2, ncol = 1, rel_heights = c(2.5, 3))
 
 ```{r, include=FALSE, eval=FALSE, echo=FALSE}
 ggsave(filename = "highspeed_plot_decoding_oddball_data.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 6.5)
+ggsave(filename = "wittkuhn_schuck_figure_2.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 6.5)
 ```
