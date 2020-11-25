@@ -7,6 +7,7 @@
 We set the paths and source the basic setup script:
 
 ```{r, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 # find the path to the root of this project:
 if (!requireNamespace("here")) install.packages("here")
 if ( basename(here::here()) == "highspeed" ) {
@@ -222,10 +223,18 @@ fig_behav_all = ggplot(data = subset(dt_acc, exclude == "no"), aes(
   ylab("Accuracy (%)") + xlab("Condition") +
   scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
-  #coord_capped_cart(left = "both", bottom = "none") +
-  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
-  #theme(axis.title.x = element_text(color = "white"), axis.text.x = element_text(color = "white")) +
-  guides(shape = FALSE, color = FALSE, fill = FALSE)
+  guides(shape = FALSE, color = FALSE, fill = FALSE) +
+  coord_capped_cart(left = "both", expand = TRUE, ylim = c(0, 100)) +
+  theme(legend.position = "none") +
+  theme(panel.border = element_blank()) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 fig_behav_all
 ```
 
@@ -233,16 +242,11 @@ fig_behav_all
 
 We plot data of all participants with below chance performers highlighted in red.
 
-```{r, echo = FALSE}
+```{r, echo=TRUE}
 fig_behav_all_outlier = ggplot(data = dt_acc_mean,
   mapping = aes(x = as.factor(condition_short), y = as.numeric(mean_accuracy),
                 group = as.factor(condition_short), fill = as.factor(condition_short))) +
   geom_bar(aes(fill = as.factor(condition)), stat = "identity", color = "black", fill = "white") +
-  #geom_dotplot(data = subset(dt_acc, exclude == "no"),
-  #             aes(color = as.factor(exclude)),
-  #             binaxis = "y", stackdir = "center", stackratio = 0.5,
-  #             color = "black", fill = "lightgray", alpha = 0.5,
-  #             inherit.aes = TRUE, binwidth = 1) +
   geom_point(data = subset(dt_acc, exclude == "no"),
              aes(color = as.factor(exclude)),
              position = position_jitter(width = 0.2, height = 0, seed = 2),
@@ -256,9 +260,17 @@ fig_behav_all_outlier = ggplot(data = dt_acc_mean,
   ylab("Accuracy (%)") + xlab("Condition") +
   scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
-  #coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(0, 100)) +
+  coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(0, 100)) +
   theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
-  guides(shape = FALSE, fill = FALSE)
+  guides(shape = FALSE, fill = FALSE) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 fig_behav_all_outlier
 ```
 
@@ -388,9 +400,17 @@ plot_odd_run = ggplot(data = dt_odd_behav_run_mean, mapping = aes(
   facet_wrap(~ as.factor(session), labeller = as_labeller(facet_labels_new)) +
   ylab("Accuracy (%)") + xlab("Run") +
   ylim(c(90, 100)) +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(90,100)) +
-  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
-  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2)))
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(90,100)) +
+  theme(axis.ticks.x = element_text(color = "white"), axis.line.x = element_line(color = "white")) +
+  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 plot_odd_run
 ```
 
@@ -440,19 +460,35 @@ We plot the frequency of misses and false alarms as a function of task run and s
 ```{r, echo=TRUE}
 plot_odd_sdt = ggplot(data = dt_odd_behav_sdt_sub, mapping = aes(
   y = as.numeric(freq), x = as.numeric(run_session),
-  fill = as.factor(sdt_type))) +
-  stat_summary(geom = "bar", fun = mean, position = position_dodge(), na.rm = TRUE) +
-  stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0) +
+  fill = as.factor(sdt_type), color = as.factor(sdt_type))) +
+  stat_summary(geom = "bar", fun = mean, position = position_dodge(),
+               na.rm = TRUE) +
+  stat_summary(geom = "errorbar", fun.data = mean_se,
+               position = position_dodge(0.9), width = 0, color = "black") +
   facet_wrap(~ as.factor(session), labeller = as_labeller(facet_labels_new)) +
+  geom_dotplot(
+    aes(group = interaction(run_session, session, sdt_type)),
+    binaxis = "y", stackdir = "center", stackratio = 0.2, alpha = 0.7,
+    inherit.aes = TRUE, binwidth = 0.2, position = position_dodge(),
+    color = "black") +
   ylab("Frequency (%)") + xlab("Run") +
-  #ylim(c(0, 10)) +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,10)) +
+  coord_capped_cart(left = "both", bottom = "both",
+                    expand = TRUE, ylim = c(0, 15)) +
   scale_fill_viridis(name = "Error", discrete = TRUE) +
-  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  scale_color_viridis(name = "Error", discrete = TRUE) +
   theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
   theme(legend.position = "top", legend.direction = "horizontal",
         legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
-        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0))
+        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks.x = element_line(color = "white")) +
+  theme(axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.y = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 plot_odd_sdt
 ```
 
@@ -567,22 +603,31 @@ fig_seq_speed = ggplot(data = dt_seq_behav_speed, mapping = aes(
   geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
                color = "black", alpha = 0.5,
                inherit.aes = TRUE, binwidth = 2) +
-  #geom_point(position = position_jitter(width = 0.2, height = 0, seed = 3),
-  #           alpha = 0.5, pch = 21, color = "black") +
   geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
   ylab("Accuracy (%)") + xlab("Sequence speed (ms)") +
   scale_fill_viridis(discrete = TRUE, guide = FALSE, option = "cividis") +
   scale_color_viridis(discrete = TRUE, guide = FALSE, option = "cividis") +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
   theme(plot.title = element_text(size = 12, face = "plain")) +
   theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
   ggtitle("Sequence") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks.x = element_line(color = "white")) +
+  theme(axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.y = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 fig_seq_speed
 ```
 
 ### Effect of target position
+
+We calculate the mean behavioral accuracy on sequence trials for each of possible serial position of the target stimulus:
 
 ```{r}
 dt_seq_behav_position = dt_seq_behav %>%
@@ -608,7 +653,7 @@ summary(lme_seq_behav_position)
 anova(lme_seq_behav_position)
 ```
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
   y = as.numeric(mean_accuracy), x = as.factor(trial_target_position),
   fill = as.factor(trial_target_position), color = as.factor(trial_target_position))) +
@@ -616,17 +661,22 @@ fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
   geom_dotplot(binaxis = "y", stackdir = "center", stackratio = 0.5,
                color = "black", alpha = 0.5,
                inherit.aes = TRUE, binwidth = 2) +
-  #geom_point(pch = 21, alpha = 0.5, color = "black",
-  #           position = position_jitter(height = 0, seed = 3)) +
   geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
   ylab("Accuracy (%)") + xlab("Target position") +
-  #scale_fill_viridis(discrete = TRUE, guide = FALSE, option = "magma") +
-  #scale_color_viridis(discrete = TRUE, guide = FALSE, option = "magma") +
   scale_fill_manual(values = color_events, guide = FALSE) +
   scale_color_manual(values = color_events, guide = FALSE) +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
-  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank())
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 100)) +
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks.x = element_line(color = "white")) +
+  theme(axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.y = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 fig_seq_position
 ```
 
@@ -654,7 +704,8 @@ dt_rep_behav = dt_events %>%
   .[, by = .(subject, trial_target_position), .(
     num_trials = .N,
     mean_accuracy = mean(accuracy)
-  )] %>% #verify(all(num_trials == 5)) %>%
+  )] %>%
+  verify(all(num_trials == 5)) %>%
   # transform mean accuracy into percent (%)
   transform(mean_accuracy = mean_accuracy * 100) %>%
   # check if accuracy values range between 0 and 100
@@ -709,9 +760,9 @@ dt_rep_behav_chance = dt_rep_behav %>%
 # print table:
 rmarkdown::paged_table(dt_rep_behav_chance)
 ```
+We plot the results of the forward and backward interference conditions:
 
-
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 plot_data = dt_rep_behav_chance %>% filter(trial_target_position %in% c(2,9))
 fig_behav_rep = ggplot(data = plot_data, mapping = aes(
   y = as.numeric(mean_accuracy), x = fct_rev(as.factor(interference)),
@@ -730,16 +781,27 @@ fig_behav_rep = ggplot(data = plot_data, mapping = aes(
   ggtitle("Repetition") +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_manual(values = c("red", "dodgerblue"), guide = FALSE) +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
   theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
   theme(plot.title = element_text(size = 12, face = "plain")) +
   #scale_y_continuous(labels = label_fill(seq(0, 100, 12.5), mod = 2), breaks = seq(0, 100, 12.5)) +
-  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black")
-  #geom_text(aes(y = as.numeric(mean_accuracy) + 10, label = pvalue_adjust_round), size = 3)
+  geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
+  #geom_text(aes(y = as.numeric(mean_accuracy) + 10, label = pvalue_adjust_round), size = 3) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks.x = element_line(color = "white")) +
+  theme(axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.y = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 fig_behav_rep
 ```
 
-```{r, echo=FALSE}
+We plot the results of all intermediate repetition conditions:
+
+```{r, echo=TRUE}
 plot_data = dt_rep_behav_chance %>% filter(trial_target_position %in% seq(2,9))
 plot_behav_rep_all = ggplot(data = plot_data, mapping = aes(
   y = as.numeric(mean_accuracy), x = as.numeric(trial_target_position),
@@ -757,13 +819,22 @@ plot_behav_rep_all = ggplot(data = plot_data, mapping = aes(
                binaxis = "y", stackdir = "center", stackratio = 0.5,
                inherit.aes = TRUE, binwidth = 2, color = "black", alpha = 0.5) +
   geom_errorbar(aes(ymin = sem_lower, ymax = sem_upper), width = 0.0, color = "black") +
-  geom_text(aes(y = as.numeric(mean_accuracy) + 10, label = cohens_d), size = 2.5) +
+  geom_text(aes(y = as.numeric(mean_accuracy) + 7, label = cohens_d), size = 2.5) +
   ylab("Accuracy (%)") + xlab("First / second item repetitions") +
   scale_fill_gradient(low = "dodgerblue", high = "red", guide = FALSE) +
-  #coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,100)) +
   scale_x_continuous(labels = plot_data$label, breaks = seq(2, 9, 1)) +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
-  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank())
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(axis.ticks.x = element_line(color = "white")) +
+  theme(axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.y = element_line(color = "black")) +
+  theme(axis.line.y = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
 plot_behav_rep_all
 ```
 
@@ -773,6 +844,8 @@ ggsave(filename = "highspeed_plot_behavior_repetition_supplement.pdf",
        scale = 1, dpi = "retina", width = 5, height = 3, units = "in")
 ```
 
+We run a LME model to test the effect of repetition condition on mean behavioral accuracy in repetition trials:
+
 ```{r}
 lme_rep_behav_condition = lmer(
   mean_accuracy ~ trial_target_position + (1 + trial_target_position|subject),
@@ -781,7 +854,10 @@ summary(lme_rep_behav_condition)
 anova(lme_rep_behav_condition)
 ```
 
-## Figure for the main text
+## Figure Main
+
+We plot the figure for the main text:
+
 ```{r, echo=FALSE}
 plot_grid(fig_behav_odd, fig_seq_speed, fig_behav_rep, ncol = 3,
           rel_widths = c(2, 4.5, 2.5), labels = c("d", "e", "f"))
@@ -793,8 +869,10 @@ ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
        scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
 ```
 
+## Figure SI
 
-## Figure for the supplementary information:
+We plot the figure for the supplementary information:
+
 ```{r, echo=FALSE}
 plot_grid(
   plot_grid(
@@ -810,9 +888,15 @@ plot_grid(
 ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 8, height = 5)
+ggsave(filename = "wittkuhn_schuck_figure_s1.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 8, height = 5)
 ```
 
-## Sample characteristics
+# Participants
+
+We analyze characteristics of the participants:
+
 ```{r, results="hold"}
 # read data table with participant information:
 dt_participants <- do.call(rbind, lapply(Sys.glob(path_participants), fread))
