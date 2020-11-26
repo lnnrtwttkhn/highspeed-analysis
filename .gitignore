@@ -6,3 +6,4 @@ code/libs
 code/*.html
 figures
 code/*_files
+data/tmp
