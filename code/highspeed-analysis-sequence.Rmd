@@ -158,8 +158,9 @@ dt_pred_seq_prob = dt_pred_seq %>%
 We plot the decoding probability time-courses:
 
 ```{r}
-plot_raw_probas = function(dt1) {
-  dt_reduced = dt1 %>% setDT(.) %>%
+plot_raw_probas = function(dt1){
+  dt_reduced = dt1 %>%
+    setDT(.) %>%
     .[, by = .(classification, tITI, period), .(
       xmin = min(seq_tr) - 0.5,
       xmax = max(seq_tr) + 0.5
@@ -260,7 +261,7 @@ dt_pred_seq_prob_cue = dt_pred_seq %>%
 We plot the probabilities by target cue position:
 
 ```{r}
-plot_raw_probas_cue = function(dt1) {
+plot_raw_probas_cue = function(dt1){
   plot = ggplot(data = dt1, mapping = aes(
     x = as.factor(seq_tr), y = as.numeric(mean_prob),
     group = as.factor(position))) +
@@ -327,7 +328,8 @@ cor_method = "kendall"
 # calculate indices of association at every TR:
 dt_pred_seq_cor = dt_pred_seq %>%
   # here, we can filter for specific sequence events:
-  filter(position %in% seq(1, 5, by = 1)) %>% setDT(.) %>%
+  filter(position %in% seq(1, 5, by = 1)) %>%
+  setDT(.) %>%
   # order positions by decreasing probability and calculate step size
   # calculate correlation and slope between position and probability
   # verify that there are five probabilities (one for each class) per volume
@@ -426,7 +428,7 @@ rmarkdown::paged_table(seq_test_time(data = dt_pred_seq_cor, variable = "mean_sl
 
 
 ```{r}
-plot_seq_cor_time = function(dt, variable) {
+plot_seq_cor_time = function(dt, variable){
   # select the variable of interest, determine y-axis label and adjust axis:
   if (variable == "mean_slope") {
     ylabel = "Regression slope"
@@ -587,7 +589,7 @@ seq_test_time_cue <- function(data, variable){
 ```
 
 ```{r, echo=FALSE}
-plot_seq_cor_time_cue = function(dt, variable) {
+plot_seq_cor_time_cue = function(dt, variable){
   # select the variable of interest, determine y-axis label and adjust axis:
   if (variable == "mean_slope") {
     ylabel = "Regression slope"
@@ -892,7 +894,7 @@ rmarkdown::paged_table(
 
 
 ```{r, echo=TRUE}
-plot_seq_cor_period = function(data, variable) {
+plot_seq_cor_period = function(data, variable){
 
   # select the variable of interest, determine y-axis label and adjust axis:
   if (variable == "mean_slope") {
@@ -957,7 +959,7 @@ fig_seq_cor_period; fig_seq_step_period; fig_seq_slope_period;
 ```
 
 ```{r, echo = FALSE}
-plot_seq_cor_facet = function(dt, variable) {
+plot_seq_cor_facet = function(dt, variable){
 
   # create separate datatable to plot rectangles indicating forward / backward period:
   dt_reduced = dt %>% setDT(.) %>%
@@ -1074,7 +1076,7 @@ rmarkdown::paged_table(
 We plot the same data, just splitting up the data by the serial position of the cued image:
 
 ```{r}
-plot_seq_cor_period_cue = function(data, variable) {
+plot_seq_cor_period_cue = function(data, variable){
 
   # select the variable of interest, determine y-axis label and adjust axis:
   if (variable == "mean_slope") {
