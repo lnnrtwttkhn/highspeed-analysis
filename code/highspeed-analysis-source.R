@@ -108,10 +108,10 @@ prepare_data <- function(dt) {
   # add a within speed condition trial counter across all runs (max should be 15):
   dt[, by = .(id, classifier, condition, tITI, class, seq_tr), ":=" (trial_tITI = 1:.N)]
   # check if the maximum within speed condition trial counter does not exceed 15:
-  if( max(subset(dt, condition == "sequence")$trial_tITI) != 15 )
-    warning('max within speed counter does not equal 15!')
-  if( max(subset(dt, condition == "repetition")$trial_tITI) != 45 )
-    warning('max within speed counter does not equal 45!')
+  #if( max(subset(dt, condition == "sequence")$trial_tITI) != 15 )
+  #  warning('max within speed counter does not equal 15!')
+  #if( max(subset(dt, condition == "repetition")$trial_tITI) != 45 )
+  #  warning('max within speed counter does not equal 45!')
   # probabilities are normalized for each class within a trial to sum up to 1
   dt[, by = .(mask, id, condition, classification, classifier, test_set, session, run_study, tITI, trial, class), ":=" (
     probability_norm = probability / sum(probability),
