@@ -169,7 +169,7 @@ plot_raw_probas = function(dt1){
     mutate(fill = ifelse(period == "forward", "dodgerblue", "red"))
   plot = ggplot(data = dt1, mapping = aes(
     x = as.factor(seq_tr), y = as.numeric(mean_prob),
-    group = as.factor(position))) +
+    group = as.factor(position)), environment = environment()) +
     geom_rect(data = dt_reduced, aes(
       xmin = xmin, xmax = xmax, ymin = 0, ymax = 40),
       alpha = 0.05, inherit.aes = FALSE, show.legend = FALSE, fill = dt_reduced$fill) +
@@ -177,7 +177,6 @@ plot_raw_probas = function(dt1){
     geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper,
                     fill = as.factor(position)), alpha = 0.5) +
     geom_line(mapping = aes(color = as.factor(position))) +
-    #annotate("text", x = 13, y = 1, label = "1 TR = 1.25 s", hjust = 1, size = rel(2)) +
     theme(legend.position = "top", legend.direction = "horizontal",
           legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
           legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
@@ -283,9 +282,8 @@ plot_raw_probas_cue = function(dt1){
           panel.grid.minor = element_blank(),
           panel.border = element_blank(),
           panel.background = element_blank()) 
-    theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
+  theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
     guides(color = guide_legend(nrow = 1))
-
   return(plot)
 }
 fig_seq_probas_cue = plot_raw_probas_cue(dt1 = subset(dt_pred_seq_prob_cue, classification == "ovr"))
