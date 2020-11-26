@@ -158,7 +158,7 @@ dt_pred_seq_prob = dt_pred_seq %>%
 We plot the decoding probability time-courses:
 
 ```{r}
-plot_raw_probas = function(dt1) {
+plot_raw_probas = function(dt1) {
   dt_reduced = dt1 %>% setDT(.) %>%
     .[, by = .(classification, tITI, period), .(
       xmin = min(seq_tr) - 0.5,
@@ -180,7 +180,8 @@ plot_raw_probas = function(dt1) {
     theme(legend.position = "top", legend.direction = "horizontal",
           legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
           legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
-    xlab("Time from sequence onset (TRs; 1 TR = 1.25 s)") + ylab("Probability (%)") +
+    xlab("Time from sequence onset (TRs; 1 TR = 1.25 s)") +
+    ylab("Probability (%)") +
     scale_color_manual(values = color_events, name = "Serial event") +
     scale_fill_manual(values = color_events, name = "Serial event") +
     scale_x_discrete(labels = label_fill(seq(1, 13, 1), mod = 4), breaks = seq(1, 13, 1)) +
@@ -491,7 +492,7 @@ fig_seq_step_time = plot_seq_cor_time(dt = subset(
 fig_seq_cor_time; fig_seq_slope_time; fig_seq_step_time
 ```
 
-```{r, eval=FALSE, echo=FALSE}
+```{r, eval=FALSE, echo=FALSE, include=FALSE}
 ggsave(filename = "highsspeed_plot_decoding_sequence_timecourses_slopes.pdf",
        plot = fig_seq_slope_time, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5.5, height = 3)
@@ -1143,7 +1144,7 @@ plot_grid(fig_seq_probas_cue, fig_seq_slope_time_cue, fig_seq_slope_period_cue,
           labels = c("a", "b", "c"), nrow = 3, rel_heights = c(5, 4, 6))
 ```
 
-```{r, include=FALSE, eval=FALSE, echo=FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_cue_effects.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 6, height = 10)
@@ -1342,7 +1343,7 @@ fig_seq_pos_period = ggplot(data = plot_data, aes(
         panel.background = element_blank())
 fig_seq_pos_period
 ```
-```{r, include = FALSE, eval = FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_position_period.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
@@ -1398,8 +1399,49 @@ fig_seq_pos_time = plot_seq_pos(dt = subset(dt_pred_seq_pos_tr, classification =
 fig_seq_pos_time
 ```
 
+```{r, echo = FALSE}
+plot_seq_pos_facet <- function(dt){
+  # create separate datatable to plot rectangles indicating forward / backward period:
+  dt_reduced = dt %>% setDT(.) %>%
+    .[, by = .(classification, tITI, period), .(
+      xmin = min(seq_tr) - 0.5,
+      xmax = max(seq_tr) + 0.5
+    )] %>%
+    filter(period != "excluded") %>%
+    mutate(fill = ifelse(period == "forward", "dodgerblue", "red"))
+  ggplot(data = dt, mapping = aes(
+    x = as.factor(seq_tr), y = as.numeric(mean_position),
+    group = as.factor(as.numeric(tITI)*1000), fill = as.factor(as.numeric(tITI)*1000))) +
+    geom_rect(data = dt_reduced, aes(xmin = xmin, xmax = xmax, ymin = 2, ymax = 4),
+      alpha = 0.05, inherit.aes = FALSE, show.legend = FALSE, fill = dt_reduced$fill) +
+    geom_hline(aes(yintercept = 3), linetype = "solid", color = "gray") +
+    facet_wrap(facets = ~ as.factor(tITI), labeller = get_labeller(dt$tITI), nrow = 1) +
+    geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
+    geom_line(mapping = aes(color = as.factor(as.numeric(tITI)*1000))) +
+    geom_point(data = subset(dt, pvalue_adjust < 0.05), pch = 21, fill = "red",
+               color = "black", show.legend = FALSE) +
+    xlab("Time from sequence onset (TRs)") +
+    ylab("Event position") +
+    scale_colour_viridis(discrete = TRUE, option = "cividis", name = "Speed (ms)", guide = FALSE) +
+    scale_fill_viridis(discrete = TRUE, option = "cividis", name = "Speed (ms)", guide = FALSE) +
+    scale_x_discrete(labels = label_fill(seq(1, 13, 1), mod = 4), breaks = seq(1, 13, 1)) +
+    coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(2,4)) +
+    theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
+    theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.box.margin = margin(t = 0, r = 0, b = 0, l = 0)) +
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+}
+fig_seq_pos_time_facet = plot_seq_pos_facet(dt = subset(dt_pred_seq_pos_tr, classification == "ovr"))
+fig_seq_pos_time_facet
+```
 
-```{r, include = FALSE, eval = FALSE}
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_timecourse_position.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 6, height = 3)
@@ -1595,6 +1637,9 @@ plot_grid(
 ggsave(filename = "highspeed_plot_decoding_sequence_data.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
+ggsave(filename = "wittkuhn_schuck_figure_3.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 12)
 ```
 
 
@@ -1632,16 +1677,34 @@ ggsave(filename = "highspeed_plot_decoding_sequence_slope_remove_items.pdf",
        dpi = "retina", width = 10, height = 10)
 ```
 
-
-
-
-```{r, echo=FALSE, eval=FALSE, include=FALSE}
+```{r}
 plot_grid(fig_seq_cor_time, fig_seq_cor_period, fig_seq_step_time, fig_seq_step_period,
           labels = "auto", ncol = 2, nrow = 2, label_fontface = "bold")
+```
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_correlation_step.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 10, height = )
+       dpi = "retina", width = 10, height = 7)
+ggsave(filename = "wittkuhn_schuck_figure_s5.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 7)
 ```
+
+```{r}
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_step") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+```
+
 
 
 ```{r}
@@ -1661,7 +1724,7 @@ remove_xaxis = theme(axis.title.x = element_blank())
 remove_facets = theme(strip.background = element_blank(), strip.text.x = element_blank())
 
 plot_grid(fig_seq_slope_time_facet + remove_xaxis,
-          fig_seq_pos_time  + remove_xaxis + theme(legend.position = "none") + remove_facets,
+          fig_seq_pos_time_facet  + remove_xaxis + theme(legend.position = "none") + remove_facets,
           fig_seq_cor_time_facet + remove_xaxis + theme(legend.position = "none") + remove_facets,
           fig_seq_step_time_facet + theme(legend.position = "none") + remove_facets,
   labels = "auto", ncol = 1, label_fontface = "bold")
@@ -1671,5 +1734,8 @@ plot_grid(fig_seq_slope_time_facet + remove_xaxis,
 ```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_timecourse_slope_correlation_step.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 6, height = 7.5)
+       dpi = "retina", width = 7, height = 9)
+ggsave(filename = "wittkuhn_schuck_figure_s6.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 9)
 ```
