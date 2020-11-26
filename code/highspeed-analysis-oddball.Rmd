@@ -921,7 +921,7 @@ dt_periods
 We save the periods of interest for different speeds which will be used for the analysis of sequence and repetition trials:
 
 ```{r}
-save(dt_periods, file = here::here('data', "dt_periods.Rdata"))
+save(dt_periods, file = file.path(path_root, 'data', "tmp", "dt_periods.Rdata"))
 ```
 
 ### Probability differences at different speeds
@@ -970,6 +970,13 @@ dt_odd_seq_sim_diff = dt_odd_seq_sim %>%
     sem_upper = mean(probability) + (sd(probability)/sqrt(.N)),
     sem_lower = mean(probability) - (sd(probability)/sqrt(.N))
   )] %>% verify(all(num_subs == 36))
+```
+
+```{r}
+save(dt_odd_seq_sim_diff, file = file.path(
+  path_root, "data", "tmp", "dt_odd_seq_sim_diff.Rdata"))
+save(dt_odd_seq_sim, file = file.path(
+  path_root, "data", "tmp", "dt_odd_seq_sim.Rdata"))
 ```
 
 ```{r}

@@ -14,9 +14,9 @@ if ( basename(here::here()) == "highspeed" ) {
 }
 # source all relevant functions from the setup R script:
 source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
-load(file.path(path_root, "data", "dt_periods.Rdata"))
-load(file.path(path_root, "data", "dt_odd_seq_sim_diff.Rdata"))
-load(file.path(path_root, "data", "dt_odd_seq_sim.Rdata"))
+load(file.path(path_root, "data", "tmp", "dt_periods.Rdata"))
+load(file.path(path_root, "data", "tmp", "dt_odd_seq_sim_diff.Rdata"))
+load(file.path(path_root, "data", "tmp", "dt_odd_seq_sim.Rdata"))
 sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
 ```
 
@@ -1164,9 +1164,9 @@ emmeans_results = emmeans(lme_seq_cor, list(pairwise ~ period | tITI))
 emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
 ```
 
-## Serial target position
+### Serial target position
 
-
+We calculate the average serial position at each TR:
 
 ```{r}
 dt_pred_seq_pos = dt_pred_seq %>%
@@ -1185,9 +1185,11 @@ dt_pred_seq_pos = dt_pred_seq %>%
   # verify that the number of trials per participant is correct:
   verify(all(num_trials == 15)) %>%
   # calculate the difference of the mean position from baseline (which is 3)
-  mutate(position_diff = mean_position - 3) %>% setDT(.) %>%
+  mutate(position_diff = mean_position - 3) %>%
+  setDT(.) %>%
   # set the speed condition and period variable to a factorial variable:
-  transform(tTII = as.factor(tITI)) %>% transform(period = as.factor(period))
+  transform(tTII = as.factor(tITI)) %>%
+  transform(period = as.factor(period))
 ```
 
 We calculate whether the average serial position is significantly different
@@ -1206,11 +1208,13 @@ dt_pred_seq_pos_period = dt_pred_seq_pos %>%
     ttest_results = t.test(position_diff, alternative = "two.sided", mu = 0)
     list(
       num_subs = .N,
-      tvalue = ttest_results$statistic,
+      tvalue = round(ttest_results$statistic, 2),
       pvalue = ttest_results$p.value,
       df = ttest_results$parameter,
       cohens_d = abs(round((mean(position_diff) - 0) / sd(position_diff), 2)),
       position_diff = mean(position_diff),
+      conf_lb = round(ttest_results$conf.int[1], 2),
+      conf_ub = round(ttest_results$conf.int[2], 2),
       sd_position = sd(position_diff),
       sem_upper = mean(position_diff) + (sd(position_diff)/sqrt(.N)),
       sem_lower = mean(position_diff) - (sd(position_diff)/sqrt(.N))
@@ -1220,7 +1224,8 @@ dt_pred_seq_pos_period = dt_pred_seq_pos %>%
   .[, by = .(classification), ":=" (
     num_comp = .N,
     pvalue_adjust = p.adjust(pvalue, method = "fdr", n = .N)
-  )] %>% verify(all(num_comp == 10)) %>%
+  )] %>%
+  verify(all(num_comp == 10)) %>%
   # add variable that indicates significance with stupid significance stars:
   mutate(significance = ifelse(pvalue_adjust < 0.05, "*", "")) %>%
   # round the original p-values:
@@ -1400,7 +1405,7 @@ ggsave(filename = "highspeed_plot_decoding_sequence_timecourse_position.pdf",
        dpi = "retina", width = 6, height = 3)
 ```
 
-## Transititons
+### Transititons
 
 We calculate the step size between consecutively decoded (highest probability) events:
 
@@ -1451,7 +1456,7 @@ dt_pred_seq_step_stat = dt_pred_seq_step_mean %>%
     ttest_results = t.test(fwd, bwd, alternative = "two.sided", paired = TRUE)
     list(
       num_subs = .N,
-      tvalue = ttest_results$statistic,
+      tvalue = round(ttest_results$statistic, 2),
       pvalue = ttest_results$p.value,
       df = ttest_results$parameter,
       cohens_d = abs(round((mean(fwd) - mean(bwd)) / sd(fwd - bwd), 2)),
@@ -1465,7 +1470,8 @@ dt_pred_seq_step_stat = dt_pred_seq_step_mean %>%
   .[, by = .(classification), ":=" (
     num_comp = .N,
     pvalue_adjust = p.adjust(pvalue, method = "fdr", n = .N)
-  )] %>% verify(all(num_comp == 10)) %>%
+  )] %>%
+  verify(all(num_comp == 10)) %>%
   # add variable that indicates significance with stupid significance stars:
   mutate(significance = ifelse(pvalue < 0.05, "*", "")) %>%
   # round the original p-values:
@@ -1476,7 +1482,7 @@ dt_pred_seq_step_stat = dt_pred_seq_step_mean %>%
   setorder(., classification, zone, tITI)
 
 dt_pred_seq_step_stat %>%
-  filter(classification == "ovr", pvalue < 0.20)
+  filter(classification == "ovr", pvalue_adjust < 0.05)
 ```
 
 We compare each period to the baseline:
@@ -1488,7 +1494,7 @@ dt_pred_seq_step_stat_baseline = dt_pred_seq_step_mean %>%
     ttest_results = t.test(mean_step, mu = 0, alternative = "two.sided")
     list(
       num_subs = .N,
-      tvalue = ttest_results$statistic,
+      tvalue = round(ttest_results$statistic, 2),
       pvalue = ttest_results$p.value,
       df = ttest_results$parameter,
       cohens_d = abs(round((mean(mean_step) - 0) / sd(mean_step), 2)),
