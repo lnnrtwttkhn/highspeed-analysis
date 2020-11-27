@@ -1663,7 +1663,7 @@ plot_nolast = plot_grid(fig_seq_slope_time + theme(legend.position = "none"),
                        rel_widths = c(4, 5), labels = c("e", "f"), ncol = 2, nrow = 1,
                        label_fontface = "bold")
 plot_all = plot_grid(
-  legend_b, title_nomax, plot_nomax,
+  common_legend, title_nomax, plot_nomax,
   title_nofirst, plot_nofirst,
   title_nolast, plot_nolast,
   ncol = 1, rel_heights=c(0.1, 0.1, 1, 0.1, 1, 0.1, 1))
@@ -1673,6 +1673,9 @@ plot_all
 
 ```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_slope_remove_items.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 10)
+ggsave(filename = "wittkuhn_schuck_figure_s7.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
 ```
