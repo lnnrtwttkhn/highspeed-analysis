@@ -692,7 +692,9 @@ fig_mean_beta; fig_mean_beta_abs; fig_sd_prob; fig_mean_pos_abs; fig_mean_neg_ab
 
 ### Frequency spectrum analyses
 
-Create data table with frequency expectations:
+#### Fixed event order
+
+We create a data table with frequency expectations:
 
 ```{r}
 fitfreq = 1 / 5.26
@@ -707,14 +709,16 @@ frequency_expectation = data.table(xintercept = c(
   delta_freq_fast, delta_freq_slow, rep(delta_freq_rest, 4)))
 ```
 
-Lomb Scargle:
+We calculate the frequency spectra based on the time courses of regression slope coefficients:
 
 ```{r}
 library(lomb)
 # create a time vector with random gaps:
 time_concat = as.vector(sapply(0:14, FUN = function(x) seq(0, 1*11, by = 1) + x*100 + round(runif(1)*50)))
 # get the frequency spectrum of fast and slow trials:
-dt_pred_rest_lsp = dt_pred_conc_slope %>% setDT(.) %>%
+dt_pred_rest_lsp = dt_pred_conc_slope %>%
+  filter(sequence == 1) %>%
+  setDT(.) %>%
   .[, by = .(classification, id, tITI), {
     frequency_spectrum = lsp(x = slope, times = time_concat, from = 0, to = 0.3, plot = FALSE)
     list(num_trs = .N, freq_bins = frequency_spectrum$scanned,
@@ -726,6 +730,9 @@ dt_pred_rest_lsp = dt_pred_conc_slope %>% setDT(.) %>%
     power_smooth = stats::filter(power, rep(1/unique(filter_width), unique(filter_width))),
     freq_bins_smooth = stats::filter(freq_bins, rep(1/unique(filter_width), unique(filter_width)))
   )]
+```
+
+```{r}
 # calculate the mean frequency profile across participants:
 dt_pred_rest_lsp_mean = dt_pred_rest_lsp %>%
   # filter out NA frequency spectrum:
@@ -737,16 +744,55 @@ dt_pred_rest_lsp_mean = dt_pred_rest_lsp %>%
     mean_spec = mean(power_smooth),
     sem_upper = mean(power_smooth) + (sd(power_smooth)/sqrt(.N)),
     sem_lower = mean(power_smooth) - (sd(power_smooth)/sqrt(.N))
-  )] #%>% verify(all(num_subs == 32))
+  )] %>%
+  verify(all(num_subs == 32))
 ```
 
+```{r}
+#colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
+colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(1), "black", grays(2))
+fig_freq_lsp = ggplot(
+  data = dt_pred_rest_lsp_mean  %>% filter(tITI != "Rest Post S1"),
+  aes(
+    color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
+  geom_vline(data = frequency_expectation, aes(xintercept = xintercept),
+             linetype = "dashed", color = colors) +
+  geom_line() +
+  geom_ribbon(aes(fill = tITI, ymin = sem_lower, ymax = sem_upper),
+              alpha = 0.3, color = NA) +
+  geom_text(data = frequency_expectation, aes(
+    x = xintercept + 0.02, y = 0.1, label = paste(round(xintercept, 2))),
+    color = colors) +
+  xlab("Frequency") + ylab("Power") +
+  scale_color_manual(name = "", values = colors) +
+  scale_fill_manual(name = "", values = colors) +
+  theme(legend.position = "top", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
+        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE,
+                    ylim = c(0, 3), xlim = c(0, 0.3)) +
+  guides(color = guide_legend(nrow = 1)) +
+  scale_x_continuous(labels = label_fill(seq(0, 0.3, by = 0.05), mod = 1),
+                     breaks = seq(0, 0.3, by = 0.05)) +
+  theme(panel.border = element_blank(), axis.line = element_line()) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+fig_freq_lsp
+```
+
+#### All possible event orders
+
 We calculate the frequency spectrum for all permuted resting state sequences and
-sequence trials.
+sequence trials:
+
 ```{r}
 # create a time vector with random gaps:
 time_concat = as.vector(sapply(0:14, FUN = function(x) seq(0, 1*11, by = 1) + x*100 + round(runif(1)*50)))
 # get the frequency spectrum of fast and slow trials:
-dt_pred_rest_lsp = dt_pred_conc_slope %>%
+dt_pred_rest_lsp_seen = dt_pred_conc_slope %>%
   # calculate the frequency spectrum for each permuted sequence and participant:
   .[, by = .(classification, id, tITI, sequence, seen), {
     frequency_spectrum = lomb::lsp(
@@ -775,7 +821,7 @@ was actually seen during the task or not:
 
 ```{r}
 # calculate the mean frequency profile across participants:
-dt_pred_rest_lsp_mean = dt_pred_rest_lsp %>%
+dt_pred_rest_lsp_mean_seen = dt_pred_rest_lsp_seen %>%
   # filter out NA frequency spectrum:
   filter(!is.na(power_smooth)) %>%
   setDT(.) %>%
@@ -813,10 +859,12 @@ frequency_expectation = data.table(xintercept = c(
   tITI = c("32 ms", "2048 ms", "Rest Pre S1"))
 ```
 
+#### Pre vs. post-task resting-state data
+
 ```{r, echo=FALSE}
 colors_all = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
 colors_rest = c("black", "darkred")
-plot_data <- dt_pred_rest_lsp_mean %>%
+plot_data <- dt_pred_rest_lsp_mean_seen %>%
   filter(tITI %in% c("Rest Pre S1", "Rest Post S1"))
 fig_freq_post <- ggplot(data = plot_data, aes(
   color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
@@ -848,9 +896,11 @@ fig_freq_post <- ggplot(data = plot_data, aes(
 fig_freq_post
 ```
 
+We calculate the relative power (difference between pre- and post task resting state data) across the entire frequency spectrum:
+
 ```{r}
 # calculate the mean frequency profile across participants:
-dt_pred_rest_lsp_mean_rel = dt_pred_rest_lsp %>%
+dt_pred_rest_lsp_mean_rel_seen = dt_pred_rest_lsp_seen %>%
   filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
   transform(tITI = ifelse(tITI == "Rest Pre S1", "rest_pre_s1", "rest_post_s1")) %>%
   # filter out NA frequency spectrum:
@@ -884,12 +934,10 @@ increase_slow = dt_pred_rest_lsp_mean_rel$freq_bins_smooth[which.max(dt_pred_res
 increase_fast = dt_pred_rest_lsp_mean_rel$freq_bins_smooth[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07][which.max(dt_pred_rest_lsp_mean_rel[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07]$mean_spec)]
 ```
 
-
-
 ```{r, echo=FALSE}
 colors_all = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
 colors_rest = c("black", "darkred")
-fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel, aes(
+fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel_seen, aes(
   y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
   geom_vline(data = frequency_expectation, aes(xintercept = xintercept),
              linetype = "dashed", color = colors_all) +
@@ -911,10 +959,6 @@ fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel, aes(
   guides(color = guide_legend(nrow = 1)) +
   scale_x_continuous(labels = label_fill(seq(0, 0.3, by = 0.05), mod = 1),
                      breaks = seq(0, 0.3, by = 0.05)) +
-  #geom_segment(aes(x = unlist(frequency_expectation[1]), xend = 0.3,
-  #                 y = 0.2, yend = 0.2),
-  #             arrow = arrow(length = unit(5, "pt")),
-  #             color = hcl.colors(5, "Cividis")[c(1)]) +
   theme(panel.border = element_blank(), axis.line = element_line()) +
   theme(axis.line = element_line(colour = "black"),
         panel.grid.major = element_blank(),
@@ -924,9 +968,13 @@ fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel, aes(
 fig_freq_post_rel
 ```
 
+#### Frequency spectra of frequent vs. less frequent sequences
+
+We calculate the mean frequency spectra depending on whether the assumed sequences occured more frequency or less frequently during the task:
+
 ```{r}
 # calculate the mean frequency profile across participants:
-dt_pred_rest_lsp_mean_seq = dt_pred_rest_lsp %>%
+dt_pred_rest_lsp_mean_seen = dt_pred_rest_lsp_seen %>%
   # filter out NA frequency spectrum:
   filter(!is.na(power_smooth)) %>%
   setDT(.) %>%
@@ -949,58 +997,9 @@ dt_pred_rest_lsp_mean_seq = dt_pred_rest_lsp %>%
   verify(all(num_subs == 32))
 ```
 
-
-```{r}
-#colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
-colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(1), "black", grays(2))
-fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean , aes(
-  color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
-  geom_vline(data = frequency_expectation, aes(xintercept = xintercept),
-             linetype = "dashed", color = colors) +
-  geom_line() +
-  geom_ribbon(aes(fill = tITI, ymin = sem_lower, ymax = sem_upper),
-              alpha = 0.3, color = NA) +
-  geom_text(data = frequency_expectation, aes(
-    x = xintercept + 0.02, y = 0.1, label = paste(round(xintercept, 2))),
-    color = colors) +
-  xlab("Frequency") + ylab("Power") +
-  scale_color_manual(name = "", values = colors) +
-  scale_fill_manual(name = "", values = colors) +
-  theme(legend.position = "top", legend.direction = "horizontal",
-        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
-        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE,
-                    ylim = c(0, 3), xlim = c(0, 0.3)) +
-  guides(color = guide_legend(nrow = 1)) +
-  scale_x_continuous(labels = label_fill(seq(0, 0.3, by = 0.05), mod = 1),
-                     breaks = seq(0, 0.3, by = 0.05)) +
-  theme(panel.border = element_blank(), axis.line = element_line()) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-fig_freq_lsp
-```
-
-
-```{r}
-fitfreq = 1 / 5.26
-stim_dur = 0.1
-num_seq_stim = 5
-# calculate the delta 
-delta_freq_fast = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 0.032))
-delta_freq_slow = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 2.048))
-delta_freq_rest = 0.01
-# create a data table with the expected frequencies:
-frequency_expectation = data.table(xintercept = c(
-  delta_freq_fast, delta_freq_slow, delta_freq_rest))
-```
-
-by sequence:
-```{r, ech=FALSE}
+```{r, echo=FALSE}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(1), "black")
-fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean, aes(
+fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean_seen, aes(
   color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
   facet_wrap(~ seen) +
   geom_vline(data = frequency_expectation, aes(xintercept = xintercept),
@@ -1031,8 +1030,53 @@ fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean, aes(
 fig_freq_lsp
 ```
 
-Compare the power of the expected frequencies of resting state, fast, and slow
+#### Relative frequency spectra (fixed order)
+
+We compare the power of the expected frequencies of resting state, fast, and slow
 sequence trial data in data from resting state, fast, and slow sequence trial data.
+
+```{r}
+fitfreq = 1 / 5.26
+stim_dur = 0.1
+num_seq_stim = 5
+# calculate the delta 
+delta_freq_fast = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 0.032))
+delta_freq_slow = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 2.048))
+delta_freq_rest = 0.01
+# create a data table with the expected frequencies:
+frequency_expectation = data.table(xintercept = c(
+  delta_freq_fast, delta_freq_slow, rep(delta_freq_rest, 4)))
+```
+
+```{r}
+dt_pred_rest_lsp_rel = dt_pred_rest_lsp %>%
+  # remove columns that are not needed:
+  mutate(num_trs = NULL, filter_width = NULL, power = NULL) %>%
+  # spread the values of the smoothed power for all speed conditions:
+  spread(key = "tITI", value = "power_smooth") %>%
+  # calculate relative to power (relative to resting state data):
+  mutate(power_fast_rel = get("32 ms") / get("Rest Pre S1")) %>%
+  mutate(power_slow_rel = get("2048 ms") / get("Rest Pre S1")) %>%
+  setDT(.) %>%
+  # find the frequency with the highest power for every participant:
+  .[, by = .(classification, id), .(
+    num_bins = .N,
+    max_freq_fast = freq_bins_smooth[which.max(power_fast_rel)],
+    max_freq_slow = freq_bins_smooth[which.max(power_slow_rel)]
+  )] %>%
+  # compare the maximum frequencies of relative fast vs. relative slow data:
+  .[, by = .(classification), {
+    ttest_results = t.test(max_freq_fast, max_freq_slow, paired = TRUE)
+    list(
+      num_subs = .N,
+      pvalue = ttest_results$p.value,
+      tvalue = ttest_results$statistic,
+      df = ttest_results$parameter
+    )}] %>%
+  verify(all(num_subs == 32))
+# print the table:
+rmarkdown::paged_table(dt_pred_rest_lsp_rel)
+```
 
 ```{r}
 dt_pred_rest_lsp_exp = dt_pred_rest_lsp %>%
@@ -1051,96 +1095,11 @@ dt_pred_rest_lsp_exp = dt_pred_rest_lsp %>%
   setDT(.)
 ```
 
-by seen:
-```{r}
-dt_pred_rest_lsp_exp = dt_pred_rest_lsp %>%
-  .[, by = .(classification, id, tITI, sequence, seen), .(
-    power_index_fast = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_fast))],
-    power_index_slow = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_slow))],
-    power_index_rest = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_rest))]
-  )] %>%
-  # melt all index variables into one column:
-  gather(grep("power", names(.), fixed = TRUE), key = "index", value = "power") %>%
-  setDT(.) %>%
-  .[grepl("index_fast", index), label := paste0("Fast (", round(delta_freq_fast, 2), ")")] %>%
-  .[grepl("index_slow", index), label := paste0("Slow (", round(delta_freq_slow, 2), ")")] %>%
-  .[grepl("index_rest", index), label := paste0("Rest (", round(delta_freq_rest, 2), ")")] %>%
-  # average across sequences for seen and unseen sequences:
-  .[, by = .(classification, id, tITI, seen, index, label), .(
-    num_seqs = .N,
-    power = mean(power)
-  )] %>%
-  # check if the number of sequences matches for sequence (1), seen (15) and
-  # unseen (105) sequences in permuted resting state sequences:
-  verify(num_seqs %in% c(1, 15, 105)) %>%
-  setorder(., classification, id, tITI) %>%
-  filter(classification == "ovr") %>%
-  setDT(.)
-```
-
-```{r, results=hold}
-lme_power <- lmerTest::lmer(
-  power ~ tITI + seen  + (tITI + seen | id),
-  data = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" &
-                  stringr::str_detect(tITI, "Rest")),
-  control = lcctrl)
-summary(lme_power)
-anova(lme_power)
-emmeans_results = emmeans(lme_power, list(pairwise ~ seen | tITI))
-emmeans_results
-```
-
-```{r, results=hold}
-lme_power <- lmerTest::lmer(
-  power ~ tITI+ (seen | id),
-  data = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" &
-                  stringr::str_detect(tITI, "Rest")),
-  control = lcctrl)
-summary(lme_power)
-anova(lme_power)
-emmeans_results = emmeans(lme_power, list(pairwise ~ tITI))
-emmeans_results
-```
-
-```{r}
-gaga <- dt_pred_rest_lsp_exp %>%
-  filter(stringr::str_detect(tITI, "Rest") & index == "power_index_fast") %>%
-  group_by(index, seen) %>%
-  do(broom::tidy(t.test(formula = power ~ tITI, data = ., paired = TRUE))) %>%
-  setDT(.) %>%
-  .[, "p.value_adjust" := p.adjust(p.value, method = "fdr")] %>%
-  .[, "p.value_round" := round_pvalues(p.value)] %>%
-  .[, "p.value_adjust_round" := round_pvalues(p.value_adjust)] %>%
-  # check if the degrees-of-freedom are n - 1:
-  verify(parameter == 32 - 1) %>%
-  rmarkdown::paged_table(.)
-gaga
-```
-
-```{r}
-# get the power spectrum of the expected fast frequency in fast data:
-power_fast = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "32 ms")$power
-# get the power spectrum of the expected fast frequency in slow data:
-power_slow = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "2048 ms")$power
-# get the power spectrum of the expected fast frequency in rest data:
-power_rest_pre = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "rest_run-pre_ses-01")$power
-power_rest_post = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "rest_run-post_ses-01")$power
-# compare fast vs. slow and fast vs. rest:
-ttest_power_fastvsslow = t.test(power_fast, power_slow, paired = TRUE)
-ttest_power_fastvsrestpre = t.test(power_fast, power_rest_pre, paired = TRUE)
-ttest_power_fastvsrestpost = t.test(power_fast, power_rest_post, paired = TRUE)
-ttest_power_restprevsrestpost = t.test(power_rest_s1, power_rest_s2, paired = TRUE)
-round_pvalues(p.adjust(c(ttest_power_fastvsslow$p.value,
-           ttest_power_fastvsrestpre$p.value,
-           ttest_power_fastvsrestpost$p.value,
-           ttest_power_restprevsrestpost$p.value), method = "fdr"))
-```
-
-
-```{r}
+```{r, echo=TRUE}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray", "black")
-fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp, aes(
-  y = power, x = fct_rev(label), fill = tITI)) + 
+fig_freq_exp = ggplot(
+  data = dt_pred_rest_lsp_exp %>% filter(tITI != "Rest Post S1"),
+  aes(y = power, x = fct_rev(label), fill = tITI)) + 
   geom_bar(stat = "summary", fun = "mean", position = position_dodge(0.9),
            width = 0.8) +
   geom_point(position = position_jitterdodge(
@@ -1165,10 +1124,37 @@ fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp, aes(
 fig_freq_exp
 ```
 
-by seen:
+#### Relative frequency spectra (all orders)
+
+```{r}
+dt_pred_rest_lsp_exp_seen = dt_pred_rest_lsp_seen %>%
+  .[, by = .(classification, id, tITI, sequence, seen), .(
+    power_index_fast = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_fast))],
+    power_index_slow = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_slow))],
+    power_index_rest = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_rest))]
+  )] %>%
+  # melt all index variables into one column:
+  gather(grep("power", names(.), fixed = TRUE), key = "index", value = "power") %>%
+  setDT(.) %>%
+  .[grepl("index_fast", index), label := paste0("Fast (", round(delta_freq_fast, 2), ")")] %>%
+  .[grepl("index_slow", index), label := paste0("Slow (", round(delta_freq_slow, 2), ")")] %>%
+  .[grepl("index_rest", index), label := paste0("Rest (", round(delta_freq_rest, 2), ")")] %>%
+  # average across sequences for seen and unseen sequences:
+  .[, by = .(classification, id, tITI, seen, index, label), .(
+    num_seqs = .N,
+    power = mean(power)
+  )] %>%
+  # check if the number of sequences matches for sequence (1), seen (15) and
+  # unseen (105) sequences in permuted resting state sequences:
+  verify(num_seqs %in% c(1, 15, 105)) %>%
+  setorder(., classification, id, tITI) %>%
+  filter(classification == "ovr") %>%
+  setDT(.)
+```
+
 ```{r}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray", "black")
-fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp, aes(
+fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp_seen, aes(
   y = power, x = fct_rev(label), fill = tITI)) + 
   geom_bar(stat = "summary", fun = "mean", position = position_dodge(0.9),
            width = 0.8) +
@@ -1195,8 +1181,49 @@ fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp, aes(
 fig_freq_exp
 ```
 
+```{r, results=hold}
+lme_power <- lmerTest::lmer(
+  power ~ tITI + seen  + (tITI + seen | id),
+  data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
+                  stringr::str_detect(tITI, "Rest")),
+  control = lcctrl)
+summary(lme_power)
+anova(lme_power)
+emmeans_results = emmeans(lme_power, list(pairwise ~ seen | tITI))
+emmeans_results
+```
+
+```{r, echo=TRUE, results=hold}
+lme_power <- lmerTest::lmer(
+  power ~ tITI + (seen | id),
+  data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
+                  stringr::str_detect(tITI, "Rest")),
+  control = lcctrl)
+summary(lme_power)
+anova(lme_power)
+emmeans_results = emmeans(lme_power, list(pairwise ~ tITI))
+emmeans_results
+```
+
+We compare the power in the fast frequency spectrum between pre- and post-task resting-state data:
+
 ```{r}
-plot_data <- dt_pred_rest_lsp_exp %>%
+dt_pred_rest_lsp_exp_seen %>%
+  # select resting state data and power in the fast frequency range:
+  filter(stringr::str_detect(tITI, "Rest") & index == "power_index_fast") %>%
+  group_by(index, seen) %>%
+  do(broom::tidy(t.test(formula = power ~ tITI, data = ., paired = TRUE))) %>%
+  setDT(.) %>%
+  .[, "p.value_adjust" := p.adjust(p.value, method = "fdr")] %>%
+  .[, "p.value_round" := round_pvalues(p.value)] %>%
+  .[, "p.value_adjust_round" := round_pvalues(p.value_adjust)] %>%
+  # check if the degrees-of-freedom are n - 1:
+  verify(parameter == 32 - 1) %>%
+  rmarkdown::paged_table(.)
+```
+
+```{r}
+plot_data <- dt_pred_rest_lsp_exp_seen %>%
   filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
   filter(index == "power_index_fast")
 colors = c(brewer.pal(n = 8, name = "RdBu")[6], hcl.colors(5, "Cividis")[c(1)])
@@ -1231,49 +1258,41 @@ fig_freq_exp = ggplot(data = plot_data, aes(
 fig_freq_exp
 ```
 
+```{r}
+# get the power spectrum of the expected fast frequency in fast data:
+power_fast = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "32 ms")$power
+# get the power spectrum of the expected fast frequency in slow data:
+power_slow = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "2048 ms")$power
+# get the power spectrum of the expected fast frequency in rest data:
+power_rest_pre = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "Rest Pre S1")$power
+power_rest_post = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "Rest Post S1")$power
+# compare fast vs. slow and fast vs. rest:
+ttest_power_fastvsslow = t.test(power_fast, power_slow, paired = TRUE)
+ttest_power_fastvsrestpre = t.test(power_fast, power_rest_pre, paired = TRUE)
+ttest_power_fastvsrestpost = t.test(power_fast, power_rest_post, paired = TRUE)
+ttest_power_restprevsrestpost = t.test(power_rest_pre, power_rest_post, paired = TRUE)
+round_pvalues(p.adjust(c(ttest_power_fastvsslow$p.value,
+           ttest_power_fastvsrestpre$p.value,
+           ttest_power_fastvsrestpost$p.value,
+           ttest_power_restprevsrestpost$p.value), method = "fdr"))
+```
+### Figure 6
 
 ```{r}
 plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp, nrow = 1, ncol = 3,
           labels = c("a", "b", "c"), rel_widths = c(3, 3, 3))
+```
+
+```{r, echo=TRUE, eval=FALSE}
 ggsave(filename = "highspeed_plot_decoding_resting_post.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 9, height = 3)
+ggsave(filename = "wittkuhn_schuck_figure_6.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 9, height = 3)
 ```
 
 
-
-
-Compare the relative frequency spectra. Com
-
-```{r}
-dt_pred_rest_lsp_rel = dt_pred_rest_lsp %>%
-  # remove columns that are not needed:
-  mutate(num_trs = NULL, filter_width = NULL, power = NULL) %>%
-  # spread the values of the smoothed power for all speed conditions:
-  spread(key = "tITI", value = "power_smooth") %>%
-  # calculate relative to power (relative to resting state data):
-  mutate(power_fast_rel = get("32 ms") / get("rest_run-pre_ses-01")) %>%
-  mutate(power_slow_rel = get("2048 ms") / get("rest_run-pre_ses-01")) %>%
-  setDT(.) %>%
-  # find the frequency with the highest power for every participant:
-  .[, by = .(classification, id), .(
-    num_bins = .N,
-    max_freq_fast = freq_bins_smooth[which.max(power_fast_rel)],
-    max_freq_slow = freq_bins_smooth[which.max(power_slow_rel)]
-  )] %>%
-  # compare the maximum frequencies of relative fast vs. relative slow data:
-  .[, by = .(classification), {
-    ttest_results = t.test(max_freq_fast, max_freq_slow, paired = TRUE)
-    list(
-      num_subs = .N,
-      pvalue = ttest_results$p.value,
-      tvalue = ttest_results$statistic,
-      df = ttest_results$parameter
-    )}] %>%
-  verify(all(num_subs == 32))
-# print the table:
-rmarkdown::paged_table(dt_pred_rest_lsp_rel)
-```
 
 
 Try to calculate frequency spectrum per trial:
