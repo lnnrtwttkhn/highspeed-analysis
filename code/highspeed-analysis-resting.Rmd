@@ -1,48 +1,27 @@
----
-title: "Detecting sub-second neural event sequences in humans using fMRI"
-subtitle: "Resting state data"
-author: "Lennart Wittkuhn & Nicolas W. Schuck"
-date: "Last update: `r format(Sys.time(), '%d %B, %Y')`"
-output:
-  html_document:
-    toc: yes
-    self_contained: true
-    toc_float: true
-    toc_depth: 3
-    number_sections: true
-    highlight: pygments
-    theme: cosmo
-    code_folding: "show"
-    df_print: paged
-    fig_caption: true
-  github_document:
-  pdf_document:
-    toc: yes
-    fig_caption: true
-    latex_engine: xelatex
-fig.align: "center"
-header-includes:
-  - \usepackage{fontspec}
-  - \setmainfont{AgfaRotisSansSerif}
-email: wittkuhn@mpib-berlin.mpg.de
----
+## Resting-state
 
-## Initialization
-### Load data and functions
+### Preparation
+
+#### Initialization
+
 We load the data and relevant functions:
 
 ```{r, warning=FALSE, message=FALSE, echo=TRUE}
-# find the root path of the project:
-path_root <- rprojroot::find_rstudio_root_file()
-# define the path to the start-up file:
-path_startup = file.path(path_root, "code", "decoding", "decoding_r")
-# source all functions and data in the start-up file:
-source(file.path(path_startup, "highspeed_analysis_setup.R"))
+# find the path to the root of this project:
+if (!requireNamespace("here")) install.packages("here")
+if ( basename(here::here()) == "highspeed" ) {
+  path_root = here::here("highspeed-analysis")
+} else {
+  path_root = here::here()
+}
+# source all relevant functions from the setup R script:
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 # list of participants with chance performance on sequence and repetition trials:
 chance_performer = c("sub-24", "sub-31", "sub-37", "sub-40")
 ```
 
-### Prepare sequence data
+#### Prepare sequence events data
+
 We select all events files for sequence trials when the stimuli were presented:
 
 ```{r, echo=TRUE}
@@ -51,7 +30,8 @@ dt_events_seq = subset(dt_events, condition == "sequence" & trial_type == "stimu
 rmarkdown::paged_table(dt_events_seq)
 ```
 
-### Prepare resting data
+#### Prepare resting decoding data
+
 We prepare the resting state data for analysis:
 
 ```{r, results = "hold"}
@@ -85,6 +65,7 @@ dt_pred_rest = dt_pred %>%
 
 We did not acquire pre-task resting-state data in Session 1.
 We filter for these participants below:
+
 ```{r, results = "hold"}
 # create an array with all participant ids who do not have all four resting state runs:
 ids_no_pre_s1 = unique(
@@ -96,6 +77,7 @@ print(ids_no_pre_s1)
 ```
 
 We select data from all remaining participants with pre-task session 1 rest:
+
 ```{r, results = "hold"}
 dt_pred_rest_s1 = dt_pred_rest %>%
   # exclude participants without session 1 pre-task rest:
@@ -123,8 +105,10 @@ dt_pred_rest_s1 = dt_pred_rest %>%
   setDT(.)
 ```
 
-## Prepare sequence decoding data
+#### Prepare sequence decoding data
+
 We prepare the sequence trial data that will be combined with the resting state data:
+
 ```{r}
 # create a list of all participants that are excluded from the resting state analysis:
 sub_exclude_rest = unique(dt_events_seq$subject[
@@ -153,8 +137,10 @@ dt_pred_seq = dt_pred %>%
     num_trs = .N)]$num_trs == 12)
 ```
 
-## Combine sequence and resting data
+#### Combine sequence and resting data
+
 We combine the sequence and resting state decoding data in one data table:
+
 ```{r, echo=TRUE}
 #c("run-pre_ses-01", "run-post_ses-01", "run-pre_ses-02", "run-post_ses-02")
 deselect_rest_run <- c("run-pre_ses-02", "run-post_ses-02")
@@ -177,6 +163,7 @@ dt_pred_all = rbind(dt_pred_seq, dt_pred_rest_s1) %>%
 ```
 
 We use a short function to run some checks on the combined data table:
+
 ```{r, echo=TRUE}
 checkdata = function(dt){
   library(data.table); library(tidyverse);
@@ -214,13 +201,17 @@ checkdata = function(dt){
 rmarkdown::paged_table(checkdata(dt_pred_all))
 ```
 
+### Decoding probabilities
+
 We draw a random example participant used for plotting:
+
 ```{r}
 set.seed(3)
 example_id = sample(unique(dt_pred_all$id), 1)
 ```
 
 We concatenate all fast and slow sequence trials and resting state:
+
 ```{r}
 dt_pred_conc = dt_pred_all %>%
   # we add a consecutive counter that will be used to concatenate data:
@@ -236,8 +227,8 @@ dt_pred_conc = dt_pred_all %>%
   setDT(.)
 ```
 
-Plot the probabilities of all concatenated sequence trials and the
-pre-task resting state data (separately for each speed condition):
+We plot the probabilities of all concatenated sequence trials and the session 1
+resting state data (separately for each speed condition):
 
 ```{r, echo=FALSE}
 fig_prob_time_seq = ggplot(data = subset(dt_pred_conc, id == example_id), mapping = aes(
@@ -262,7 +253,10 @@ fig_prob_time_seq = ggplot(data = subset(dt_pred_conc, id == example_id), mappin
 fig_prob_time_seq
 ```
 
-We calculate the regression slopes for every TR and sequential combination:
+### Calculating sequentiality
+
+We create a function to determine whether a certain sequential combination of the task stimuli has been presented to the participants on sequence trials or not:
+
 ```{r}
 did_you_see_that <- function(seq, dt_events_seq) {
   dt_events_seq_sub <- dt_events_seq %>%
@@ -286,7 +280,9 @@ did_you_see_that <- function(seq, dt_events_seq) {
 }
 ```
 
-```{r}
+We verify that the function works properly:
+
+```{r, message=FALSE}
 sequences = permn(1:5, sort = TRUE)
 # list of all possible stimuli:
 seq <- c("cat", "chair", "face", "house", "shoe")
@@ -297,6 +293,8 @@ sum_seq = sum(unlist(lapply(X = sequences, function(x)
   did_you_see_that(seq = seq[x], subset(dt_events_seq, subject == sub)))))
 verify(data.table(sum_seq), sum_seq == 15)
 ```
+
+We calculate the regression slopes for every TR and assumed sequence in resting-state data:
 
 ```{r}
 # create an array with all the stimulus labels:
@@ -328,7 +326,8 @@ end_time = Sys.time()
 print(end_time - start_time)
 ```
 
-We calculate the regression slopes for every TR for rest / fast / slow:
+We calculate the regression slopes for sequence data:
+
 ```{r}
 dt_pred_conc_slope_seq = dt_pred_conc %>%
   # filter for sequence data  only:
@@ -351,6 +350,7 @@ dt_pred_conc_slope_seq = dt_pred_conc %>%
 ```
 
 We combine the resting state and sequence trial slope data:
+
 ```{r}
 dt_pred_conc_slope = rbind(dt_pred_conc_slope_seq, dt_pred_conc_slope_rest) %>%
   # verify that there are 5 events per TR and their mean position is 5:
@@ -383,16 +383,17 @@ dt_pred_conc_slope = rbind(dt_pred_conc_slope_seq, dt_pred_conc_slope_rest) %>%
   setDT(.)
 ```
 
+### Mean slope coefficients
 
+#### Fixed event order
 
-
-
-
-
+We calculate the mean slope coefficients assuming a fixed ordering of sequence events for sequence trials:
 
 ```{r}
 # calculate the mean slope across participants for each time point:
 dt_pred_conc_slope_mean <- dt_pred_conc_slope %>%
+  filter(sequence == 1) %>%
+  setDT(.) %>%
   .[, by = .(classification, tITI, t, trial_start), .(
     num_subs = .N,
     mean_slope = mean(slope),
@@ -401,34 +402,7 @@ dt_pred_conc_slope_mean <- dt_pred_conc_slope %>%
   )] %>%
   verify(all(num_subs == 32)) %>%
   filter(classification == "ovr") %>%
-  setDT(.)
-```
-
-We calculate the mean slope for every time point (for every TR) depending on
-if a sequence was actually seen or not (relevant for resting state data).
-Note, that by this definition, all sequences on sequence trials were "seen".
-```{r}
-# calculate the mean slope across participants for each time point:
-dt_pred_conc_slope_mean <- dt_pred_conc_slope %>%
-  # average slopes for each participant and each time point:
-  .[, by = .(id, classification, tITI, t, trial_start, seen), .(
-    num_seq = .N,
-    mean_slope_sub = mean(slope)
-  )] %>%
-  # number of sequences will be 1 (sequence conditions), 15 (seen permuted
-  # sequence condition), or 105 (not seen permuted sequence conditions):
-  verify(num_seq %in% c(1, 15, 105)) %>%
-  # calculate the mean slope across participants (including SEM):
-  .[, by = .(classification, tITI, t, trial_start, seen), .(
-    num_subs = .N,
-    mean_slope = mean(mean_slope_sub),
-    sem_upper = mean(mean_slope_sub) + (sd(mean_slope_sub)/sqrt(.N)),
-    sem_lower = mean(mean_slope_sub) - (sd(mean_slope_sub)/sqrt(.N))
-  )] %>%
-  # verify that data was averaged across the correct number of participants:
-  verify(all(num_subs == 32)) %>%
-  filter(classification == "ovr") %>%
-  # sort factor levels of the speed condition:
+  # sort the factor levels of the speed conditions:
   transform(tITI = factor(tITI, levels = c(
     "2048 ms", "32 ms", "Rest Pre S1", "Rest Post S1",
     "Rest Pre S2", "Rest Post S2"))) %>%
@@ -436,48 +410,21 @@ dt_pred_conc_slope_mean <- dt_pred_conc_slope %>%
 ```
 
 Plot the mean regression coefficient separately for
-all sequence speed conditions and the pre-task resting state data. Trial
-boundaries (for sequence trials) are shown as gray vertical lines.
-```{r, echo = FALSE}
-grays = colorRampPalette(c("lightgray", "black"))
-#colors = c(hcl.colors(5, "Cividis")[c(5,1)], "gray")
-colors = c(hcl.colors(5, "Cividis")[c(5,1)], grays(4))
-plot_trial_starts = dt_pred_conc_slope_mean %>%
-  filter(trial_start == 1, !stringr::str_detect(tITI, "rest"))
-fig_prob_slope = ggplot(data = dt_pred_conc_slope_mean, mapping = aes(
-  x = as.numeric(t), y = as.numeric(mean_slope), color = as.factor(tITI),
-  fill = as.factor(tITI))) +
-  facet_wrap(~ as.factor(tITI), ncol = 1) + 
-  geom_vline(data = plot_trial_starts, aes(xintercept = t), linetype = "dashed", alpha = 0.1) +
-  geom_hline(aes(yintercept = 0), linetype = "solid", color = "gray") +
-  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
-  geom_line() +
-  xlab("Time (TRs)") + ylab("Regression slope") +
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, xlim = c(1, 200)) +
-  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2))) +
-  scale_color_manual(values = colors, guide = FALSE) +
-  scale_fill_manual(values = colors, guide = FALSE) +
-  scale_y_continuous(labels = label_fill(seq(-0.1, 0.1, 0.05), mod = 2),
-                     breaks = seq(-0.1, 0.1, 0.05)) +
-  theme(panel.border = element_blank(), axis.line = element_line()) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank()) 
-fig_prob_slope
-```
+all sequence speed conditions and the pre-task resting state data.
+Trial boundaries (for sequence trials) are shown as gray vertical lines.
 
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 grays = colorRampPalette(c("lightgray", "black"))
 #colors = c(hcl.colors(5, "Cividis")[c(5,1)], "gray")
 colors = c(hcl.colors(5, "Cividis")[c(5,1)], grays(4))
 plot_trial_starts = dt_pred_conc_slope_mean %>%
   filter(trial_start == 1, !stringr::str_detect(tITI, "rest"))
-fig_prob_slope = ggplot(data = dt_pred_conc_slope_mean, mapping = aes(
-  x = as.numeric(t), y = as.numeric(mean_slope), color = as.factor(tITI),
-  fill = as.factor(tITI))) +
-  facet_grid(vars(as.factor(tITI)), vars(as.factor(seen))) + 
+fig_prob_slope = ggplot(
+  data = dt_pred_conc_slope_mean %>% filter(tITI != "Rest Post S1"),
+  mapping = aes(
+    x = as.numeric(t), y = as.numeric(mean_slope), color = as.factor(tITI),
+    fill = as.factor(tITI))) +
+  facet_wrap(~ as.factor(tITI), ncol = 1) + 
   geom_vline(data = plot_trial_starts, aes(xintercept = t), linetype = "dashed", alpha = 0.1) +
   geom_hline(aes(yintercept = 0), linetype = "solid", color = "gray") +
   geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
@@ -502,6 +449,8 @@ We calculate the mean regression slopes and compare sequence and rest:
 ```{r}
 # calculate mean regression slopes for fast and slow sequence trials and rest:
 dt_pred_conc_slope_stat = dt_pred_conc_slope %>%
+  filter(sequence == 1) %>%
+  setDT(.) %>%
   .[, by = .(classification, id, tITI), .(
     num_trs = .N,
     mean_abs_slope = mean(abs(slope)),
@@ -509,36 +458,16 @@ dt_pred_conc_slope_stat = dt_pred_conc_slope %>%
     mean_sd_prob = mean(sd_prob)
   )] %>% verify(all(num_trs == 180)) %>%
   filter(classification == "ovr") %>%
+  transform(tITI = factor(tITI, levels = c(
+    "32 ms", "2048 ms", "Rest Pre S1", "Rest Post S1",
+    "Rest Pre S2", "Rest Post S2"))) %>%
   setDT(.)
 ```
-
-We calculate the mean absolute and non-absolute slopes for sequence and rest trials
-depending on whether the permuted sequence was actually seen or not:
-```{r}
-# calculate mean regression slopes for fast and slow sequence trials and rest:
-dt_pred_conc_slope_stat = dt_pred_conc_slope %>%
-  .[, by = .(classification, id, tITI, seen), .(
-    num_trs = .N,
-    mean_slope = mean(slope),
-    mean_abs_slope = mean(abs(slope)),
-    abs_mean_slope = abs(mean(slope)),
-    abs_pos_slope = mean(abs(slope[slope > 0])),
-    abs_neg_slope = mean(abs(slope[slope < 0])),
-    mean_sd_prob = mean(sd_prob)
-  )] %>%
-  # check if the average slope was calculated across the correct number of TRs
-  # which should be 180 for sequence trials and 180 times number of sequences
-  # not seen (105) and 180 times sequences seen (15) in permuted rest data:
-  verify(all(num_trs %in% c(180, 180 * (120 - 15), 180 * 15))) %>%
-  filter(classification == "ovr") %>%
-  setDT(.)
-```
-
 
 ```{r, results=hold}
 # compare mean probabilities between resting state and fast sequence data:
-mean_sd_rest_pre = subset(dt_pred_conc_slope_stat, tITI == "rest_run-pre_ses-01")$mean_sd_prob
-mean_sd_rest_post = subset(dt_pred_conc_slope_stat, tITI == "rest_run-post_ses-01")$mean_sd_prob
+mean_sd_rest_pre = subset(dt_pred_conc_slope_stat, tITI == "Rest Pre S1")$mean_sd_prob
+mean_sd_rest_post = subset(dt_pred_conc_slope_stat, tITI == "Rest Post S1")$mean_sd_prob
 mean_sd_fast = subset(dt_pred_conc_slope_stat, tITI == "32 ms")$mean_sd_prob
 mean_sd_slow = subset(dt_pred_conc_slope_stat, tITI == "2048 ms")$mean_sd_prob
 fast_vs_rest_pre = t.test(x = mean_sd_rest_pre, y = mean_sd_fast, alternative = "two.sided", paired = TRUE)
@@ -552,56 +481,8 @@ round_pvalues(p.adjust(
     rest_pre_vs_rest_post$p.value, fast_vs_rest_post$p.value), method = "fdr"))
 cohensd_rest = round((mean(mean_sd_rest_pre) - mean(mean_sd_fast)) / sd(mean_sd_rest_pre - mean_sd_fast), 2)
 cohensd_slow = round((mean(mean_sd_slow) - mean(mean_sd_fast)) / sd(mean_sd_slow - mean_sd_fast), 2)
-print(cohensd_rest); print(cohensd_slow) 
-```
-
-```{r}
-lme_sd_prob <- lmerTest::lmer(
-  sd_prob ~ tITI + (tITI | id),
-  data = dt_pred_conc_slope, control = lcctrl
-)
-rmarkdown::paged_table(anova(lme_sd_prob))
-emmeans_results = emmeans(lme_sd_prob, list(pairwise ~ tITI))
-emmeans_results
-```
-
-```{r, results=hold}
-lme_rest_sd = lmerTest::lmer(
-  mean_sd_prob ~ tITI + (1 | id),
-  data = dt_pred_conc_slope_stat, control = lcctrl)
-rmarkdown::paged_table(anova(lme_rest_sd))
-emmeans_results = emmeans(lme_rest_sd, list(pairwise ~ tITI))
-emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
-emmeans_results
-```
-
-```{r, results=hold}
-lme_rest_slope = lmerTest::lmer(
-  mean_abs_slope ~ tITI + (1 | id),
-  data = dt_pred_conc_slope_stat, control = lcctrl)
-rmarkdown::paged_table(anova(lme_rest_slope))
-emmeans_results = emmeans(lme_rest_slope, list(pairwise ~ tITI))
-emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
-emmeans_results
-```
-
-Plot the distribution of mean regression slopes in all sequence conditions
-and pre-task resting state data:
-
-```{r}
-ggplot(data = dt_pred_conc_slope_stat, aes(x = mean_slope, fill = tITI)) + 
-  geom_histogram(color = "white", binwidth = 0.005) +
-  xlab("Mean absolute slope") + ylab("Count") +
-  facet_wrap(~ as.factor(tITI)) + 
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 15)) +
-  scale_color_manual(name = "Condition", values = colors) +
-  scale_fill_manual(name = "Condition", values = colors) +
-  theme(panel.border = element_blank(), axis.line = element_line()) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
+print(cohensd_rest); print(cohensd_slow)
+fast_vs_rest_pre; fast_vs_slow
 ```
 
 Plot the mean absolute regression slope for all speed conditions
@@ -611,8 +492,10 @@ and pre-task resting state data:
 plot_means = function(data, variable, ylabel, ylim){
   #colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
   colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(4))
-  fig_mean_beta = ggplot(data = data, aes(
-    y = get(variable), x = tITI, fill = tITI)) + 
+  fig_mean_beta = ggplot(
+    data = data %>% filter(tITI != "Rest Post S1"),
+    aes(
+      y = get(variable), x = tITI, fill = tITI)) + 
     geom_bar(stat = "summary", fun = "mean", position = position_dodge(0.9)) +
     geom_point(position = position_jitter(width = 0.1, height = 0, seed = 2),
                alpha = 1, inherit.aes = TRUE, pch = 21,
@@ -642,8 +525,126 @@ fig_sd_prob = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_sd_pro
 fig_mean_beta; fig_mean_beta_abs; fig_sd_prob;
 ```
 
+#### All possible event orders
+
+We calculate the mean slope for every time point (for every TR) depending on
+if a sequence was actually seen or not (relevant for resting state data).
+Note, that by this definition, all sequences on sequence trials were "seen".
+
 ```{r}
-plot_means = function(data, variable, ylabel, ylim){
+# calculate the mean slope across participants for each time point:
+dt_pred_conc_slope_mean_seen <- dt_pred_conc_slope %>%
+  # average slopes for each participant and each time point:
+  .[, by = .(id, classification, tITI, t, trial_start, seen), .(
+    num_seq = .N,
+    mean_slope_sub = mean(slope)
+  )] %>%
+  # number of sequences will be 1 (sequence conditions), 15 (seen permuted
+  # sequence condition), or 105 (not seen permuted sequence conditions):
+  verify(num_seq %in% c(1, 15, 105)) %>%
+  # calculate the mean slope across participants (including SEM):
+  .[, by = .(classification, tITI, t, trial_start, seen), .(
+    num_subs = .N,
+    mean_slope = mean(mean_slope_sub),
+    sem_upper = mean(mean_slope_sub) + (sd(mean_slope_sub)/sqrt(.N)),
+    sem_lower = mean(mean_slope_sub) - (sd(mean_slope_sub)/sqrt(.N))
+  )] %>%
+  # verify that data was averaged across the correct number of participants:
+  verify(all(num_subs == 32)) %>%
+  filter(classification == "ovr") %>%
+  # sort factor levels of the speed condition:
+  transform(tITI = factor(tITI, levels = c(
+    "2048 ms", "32 ms", "Rest Pre S1", "Rest Post S1",
+    "Rest Pre S2", "Rest Post S2"))) %>%
+  setDT(.)
+```
+
+```{r, echo = FALSE}
+grays = colorRampPalette(c("lightgray", "black"))
+#colors = c(hcl.colors(5, "Cividis")[c(5,1)], "gray")
+colors = c(hcl.colors(5, "Cividis")[c(5,1)], grays(4))
+plot_trial_starts = dt_pred_conc_slope_mean_seen %>%
+  filter(trial_start == 1, !stringr::str_detect(tITI, "rest"))
+fig_prob_slope_seen = ggplot(data = dt_pred_conc_slope_mean, mapping = aes(
+  x = as.numeric(t), y = as.numeric(mean_slope), color = as.factor(tITI),
+  fill = as.factor(tITI))) +
+  facet_grid(vars(as.factor(tITI)), vars(as.factor(seen))) + 
+  geom_vline(data = plot_trial_starts, aes(xintercept = t), linetype = "dashed", alpha = 0.1) +
+  geom_hline(aes(yintercept = 0), linetype = "solid", color = "gray") +
+  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
+  geom_line() +
+  xlab("Time (TRs)") + ylab("Regression slope") +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, xlim = c(1, 200)) +
+  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2))) +
+  scale_color_manual(values = colors, guide = FALSE) +
+  scale_fill_manual(values = colors, guide = FALSE) +
+  scale_y_continuous(labels = label_fill(seq(-0.1, 0.1, 0.05), mod = 2),
+                     breaks = seq(-0.1, 0.1, 0.05)) +
+  theme(panel.border = element_blank(), axis.line = element_line()) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) 
+fig_prob_slope_seen
+```
+
+We calculate the mean absolute and non-absolute slopes for sequence and rest trials
+depending on whether the permuted sequence was actually seen or not:
+
+```{r}
+# calculate mean regression slopes for fast and slow sequence trials and rest:
+dt_pred_conc_slope_stat_seen = dt_pred_conc_slope %>%
+  .[, by = .(classification, id, tITI, seen), .(
+    num_trs = .N,
+    mean_slope = mean(slope),
+    mean_abs_slope = mean(abs(slope)),
+    abs_mean_slope = abs(mean(slope)),
+    abs_pos_slope = mean(abs(slope[slope > 0])),
+    abs_neg_slope = mean(abs(slope[slope < 0])),
+    mean_sd_prob = mean(sd_prob)
+  )] %>%
+  # check if the average slope was calculated across the correct number of TRs
+  # which should be 180 for sequence trials and 180 times number of sequences
+  # not seen (105) and 180 times sequences seen (15) in permuted rest data:
+  verify(all(num_trs %in% c(180, 180 * (120 - 15), 180 * 15))) %>%
+  filter(classification == "ovr") %>%
+  setDT(.)
+```
+
+
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+lme_sd_prob <- lmerTest::lmer(
+  sd_prob ~ tITI + (tITI | id),
+  data = dt_pred_conc_slope, control = lcctrl
+)
+rmarkdown::paged_table(anova(lme_sd_prob))
+emmeans_results = emmeans(lme_sd_prob, list(pairwise ~ tITI))
+emmeans_results
+```
+
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+lme_rest_sd = lmerTest::lmer(
+  mean_sd_prob ~ tITI + (1 | id),
+  data = dt_pred_conc_slope_stat, control = lcctrl)
+rmarkdown::paged_table(anova(lme_rest_sd))
+emmeans_results = emmeans(lme_rest_sd, list(pairwise ~ tITI))
+emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
+emmeans_results
+```
+
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+lme_rest_slope = lmerTest::lmer(
+  mean_abs_slope ~ tITI + (1 | id),
+  data = dt_pred_conc_slope_stat, control = lcctrl)
+rmarkdown::paged_table(anova(lme_rest_slope))
+emmeans_results = emmeans(lme_rest_slope, list(pairwise ~ tITI))
+emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
+emmeans_results
+```
+
+```{r}
+plot_means_seen = function(data, variable, ylabel, ylim){
   #colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
   grays = colorRampPalette(c("lightgray", "black"))
   colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(4))
@@ -668,29 +669,31 @@ plot_means = function(data, variable, ylabel, ylim){
           panel.grid.minor = element_blank(),
           panel.background = element_blank())
 }
-fig_mean_beta = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "abs_mean_slope",
+fig_mean_beta = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "abs_mean_slope",
   ylabel = "Absolute mean regression slope", ylim = c(-0.01, 0.02))
-fig_mean_beta_abs = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "mean_abs_slope",
+fig_mean_beta_abs = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "mean_abs_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_sd_prob = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "mean_sd_prob",
+fig_sd_prob = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "mean_sd_prob",
   ylabel = "SD of probability", ylim = c(0, 0.4))
-fig_mean_pos_abs = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "abs_pos_slope",
+fig_mean_pos_abs = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "abs_pos_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_mean_neg_abs = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "abs_neg_slope",
+fig_mean_neg_abs = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "abs_neg_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_mean_slope = plot_means(
-  data = dt_pred_conc_slope_stat, variable = "mean_slope",
+fig_mean_slope = plot_means_seen(
+  data = dt_pred_conc_slope_stat_seen, variable = "mean_slope",
   ylabel = "Absolute mean regression slope", ylim = c(-0.01, 0.02))
 fig_mean_beta; fig_mean_beta_abs; fig_sd_prob; fig_mean_pos_abs; fig_mean_neg_abs; fig_mean_slope
 ```
 
+### Frequency spectrum analyses
 
 Create data table with frequency expectations:
+
 ```{r}
 fitfreq = 1 / 5.26
 stim_dur = 0.1
