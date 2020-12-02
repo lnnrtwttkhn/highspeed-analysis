@@ -266,7 +266,7 @@ fig_b = ggplot(data = subset(dt_pred_rep_mean_prob_plot, classification == "ovr"
 fig_b
 ```
 
-```{r, echo=FALSE, include=FALSE,}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs.pdf",
        plot = fig_b, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 4, height = 3)
@@ -645,7 +645,7 @@ fig_e = ggplot(data = subset(dt_pred_rep_count, classification == "ovr" & change
 fig_e
 ```
 
-```{r, echo=FALSE, eval=TRUE, include=FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_maxprob.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
