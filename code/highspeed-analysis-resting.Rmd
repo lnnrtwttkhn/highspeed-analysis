@@ -517,9 +517,7 @@ plot_means = function(data, variable, ylabel, ylim){
 fig_mean_beta = plot_means(data = dt_pred_conc_slope_stat, variable = "abs_mean_slope",
                            ylabel = "Absolute mean regression slope", ylim = c(0, 0.02))
 fig_mean_beta_abs = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_abs_slope",
-                           ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_mean_beta_abs = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_abs_slope",
-                           ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
+                           ylabel = "Regression slope (abs)", ylim = c(0, 0.1))
 fig_sd_prob = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_sd_prob",
                            ylabel = "SD of probability", ylim = c(0, 0.4))
 fig_mean_beta; fig_mean_beta_abs; fig_sd_prob;
@@ -669,25 +667,26 @@ plot_means_seen = function(data, variable, ylabel, ylim){
           panel.grid.minor = element_blank(),
           panel.background = element_blank())
 }
-fig_mean_beta = plot_means_seen(
+fig_mean_beta_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "abs_mean_slope",
   ylabel = "Absolute mean regression slope", ylim = c(-0.01, 0.02))
-fig_mean_beta_abs = plot_means_seen(
+fig_mean_beta_abs_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "mean_abs_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_sd_prob = plot_means_seen(
+fig_sd_prob_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "mean_sd_prob",
   ylabel = "SD of probability", ylim = c(0, 0.4))
-fig_mean_pos_abs = plot_means_seen(
+fig_mean_pos_abs_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "abs_pos_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_mean_neg_abs = plot_means_seen(
+fig_mean_neg_abs_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "abs_neg_slope",
   ylabel = "Mean absolute regression slope", ylim = c(0, 0.1))
-fig_mean_slope = plot_means_seen(
+fig_mean_slope_seen = plot_means_seen(
   data = dt_pred_conc_slope_stat_seen, variable = "mean_slope",
   ylabel = "Absolute mean regression slope", ylim = c(-0.01, 0.02))
-fig_mean_beta; fig_mean_beta_abs; fig_sd_prob; fig_mean_pos_abs; fig_mean_neg_abs; fig_mean_slope
+fig_mean_beta_seen; fig_mean_beta_abs_seen; fig_sd_prob_seen;
+fig_mean_pos_abs_seen; fig_mean_neg_abs_seen; fig_mean_slope_seen
 ```
 
 ### Frequency spectrum analyses
@@ -929,9 +928,12 @@ dt_pred_rest_lsp_mean_rel_seen = dt_pred_rest_lsp_seen %>%
   verify(all(num_subs == 32))
 ```
 
+We determine in which frequency range the peak in difference between pre- and post-task rest is:
+
 ```{r}
-increase_slow = dt_pred_rest_lsp_mean_rel$freq_bins_smooth[which.max(dt_pred_rest_lsp_mean_rel$mean_spec)]
-increase_fast = dt_pred_rest_lsp_mean_rel$freq_bins_smooth[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07][which.max(dt_pred_rest_lsp_mean_rel[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07]$mean_spec)]
+increase_slow = round(dt_pred_rest_lsp_mean_rel$freq_bins_smooth[which.max(dt_pred_rest_lsp_mean_rel$mean_spec)], 2)
+increase_fast = round(dt_pred_rest_lsp_mean_rel$freq_bins_smooth[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07][which.max(dt_pred_rest_lsp_mean_rel[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07]$mean_spec)], 2)
+increase_slow; increase_fast;
 ```
 
 ```{r, echo=FALSE}
@@ -999,7 +1001,7 @@ dt_pred_rest_lsp_mean_seen = dt_pred_rest_lsp_seen %>%
 
 ```{r, echo=FALSE}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(1), "black")
-fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean_seen, aes(
+fig_freq_lsp_seen = ggplot(data = dt_pred_rest_lsp_mean_seen, aes(
   color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins_smooth))) +
   facet_wrap(~ seen) +
   geom_vline(data = frequency_expectation, aes(xintercept = xintercept),
@@ -1027,7 +1029,7 @@ fig_freq_lsp = ggplot(data = dt_pred_rest_lsp_mean_seen, aes(
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) 
-fig_freq_lsp
+fig_freq_lsp_seen
 ```
 
 #### Relative frequency spectra (fixed order)
@@ -1154,7 +1156,7 @@ dt_pred_rest_lsp_exp_seen = dt_pred_rest_lsp_seen %>%
 
 ```{r}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray", "black")
-fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp_seen, aes(
+fig_freq_exp_seen = ggplot(data = dt_pred_rest_lsp_exp_seen, aes(
   y = power, x = fct_rev(label), fill = tITI)) + 
   geom_bar(stat = "summary", fun = "mean", position = position_dodge(0.9),
            width = 0.8) +
@@ -1178,18 +1180,20 @@ fig_freq_exp = ggplot(data = dt_pred_rest_lsp_exp_seen, aes(
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) 
-fig_freq_exp
+fig_freq_exp_seen
 ```
+
+We examine the effect of resting-state session (pre- vs. post-task rest) and sequence frequency (less frequent vs. more frequent) on the power in the high frequency range (predicted by our model) indicative of fast sequential reactivation:
 
 ```{r, results=hold}
 lme_power <- lmerTest::lmer(
-  power ~ tITI + seen  + (tITI + seen | id),
+  power ~ tITI * seen  + (tITI + seen | id),
   data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
                   stringr::str_detect(tITI, "Rest")),
   control = lcctrl)
 summary(lme_power)
 anova(lme_power)
-emmeans_results = emmeans(lme_power, list(pairwise ~ seen | tITI))
+emmeans_results = emmeans(lme_power, list(pairwise ~ tITI | seen))
 emmeans_results
 ```
 
@@ -1202,6 +1206,18 @@ lme_power <- lmerTest::lmer(
 summary(lme_power)
 anova(lme_power)
 emmeans_results = emmeans(lme_power, list(pairwise ~ tITI))
+emmeans_results
+```
+
+```{r, echo=TRUE, results=hold}
+lme_power <- lmerTest::lmer(
+  power ~ seen + (tITI | id),
+  data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
+                  stringr::str_detect(tITI, "Rest")),
+  control = lcctrl)
+summary(lme_power)
+anova(lme_power)
+emmeans_results = emmeans(lme_power, list(pairwise ~ seen))
 emmeans_results
 ```
 
@@ -1227,7 +1243,7 @@ plot_data <- dt_pred_rest_lsp_exp_seen %>%
   filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
   filter(index == "power_index_fast")
 colors = c(brewer.pal(n = 8, name = "RdBu")[6], hcl.colors(5, "Cividis")[c(1)])
-fig_freq_exp = ggplot(data = plot_data, aes(
+fig_freq_exp_post = ggplot(data = plot_data, aes(
   y = power, x = tITI, fill = seen)) + 
   geom_bar(stat = "summary", fun = "mean", position = position_dodge(0.9),
            width = 0.8) +
@@ -1255,31 +1271,12 @@ fig_freq_exp = ggplot(data = plot_data, aes(
         panel.background = element_blank())
   #theme(legend.title = element_text(size = 10), 
   #      legend.text = element_text(size = 10))
-fig_freq_exp
-```
-
-```{r}
-# get the power spectrum of the expected fast frequency in fast data:
-power_fast = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "32 ms")$power
-# get the power spectrum of the expected fast frequency in slow data:
-power_slow = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "2048 ms")$power
-# get the power spectrum of the expected fast frequency in rest data:
-power_rest_pre = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "Rest Pre S1")$power
-power_rest_post = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "Rest Post S1")$power
-# compare fast vs. slow and fast vs. rest:
-ttest_power_fastvsslow = t.test(power_fast, power_slow, paired = TRUE)
-ttest_power_fastvsrestpre = t.test(power_fast, power_rest_pre, paired = TRUE)
-ttest_power_fastvsrestpost = t.test(power_fast, power_rest_post, paired = TRUE)
-ttest_power_restprevsrestpost = t.test(power_rest_pre, power_rest_post, paired = TRUE)
-round_pvalues(p.adjust(c(ttest_power_fastvsslow$p.value,
-           ttest_power_fastvsrestpre$p.value,
-           ttest_power_fastvsrestpost$p.value,
-           ttest_power_restprevsrestpost$p.value), method = "fdr"))
+fig_freq_exp_post
 ```
 ### Figure 6
 
 ```{r}
-plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp, nrow = 1, ncol = 3,
+plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp_post, nrow = 1, ncol = 3,
           labels = c("a", "b", "c"), rel_widths = c(3, 3, 3))
 ```
 
@@ -1292,10 +1289,9 @@ ggsave(filename = "wittkuhn_schuck_figure_6.pdf",
        dpi = "retina", width = 9, height = 3)
 ```
 
+### Inserting sequence trials into rest
 
-
-
-Try to calculate frequency spectrum per trial:
+We create a function to sample sequence trials:
 
 ```{r}
 subseqsample = function(sequence, seq_size = 12, seq_num = 15) {
@@ -1338,16 +1334,18 @@ fast and slow sequence trials.
 
 ```{r}
 dt_pred_rest_freq = dt_pred_conc_slope %>%
-  filter(!(tITI == "rest_run-post_ses-01")) %>%
+  # we deselect post-task resting state data and assume on fixed ordering:
+  filter(!(tITI == "Rest Post S1") & sequence == 1) %>%
   # filter for TRs in the forward and backward period only in sequence trials:
-  filter(!(tITI %in% c("32 ms", "2048 ms") & !(seq_tr %in% seq(2, 13)))) %>% setDT(.) %>%
+  filter(!(tITI %in% c("32 ms", "2048 ms") & !(seq_tr %in% seq(2, 13)))) %>%
+  setDT(.) %>%
   # select random chunks of TRs in the resting state data
-  .[tITI == "rest_run-pre_ses-01", by = .(classification, id), ":=" (trial_tITI = subseqsample(seq_tr))] %>%
+  .[tITI == "Rest Pre S1", by = .(classification, id), ":=" (trial_tITI = subseqsample(seq_tr))] %>%
   # filter out all NA trials on resting state data
-  filter(!(is.na(trial_tITI) & tITI == "rest_run-pre_ses-01")) %>%
+  filter(!(is.na(trial_tITI) & tITI == "Rest Pre S1")) %>%
   setDT(.) %>%
   # assert that all the three conditions (two sequence trials and rest data) are present:
-  assert(in_set("32 ms", "2048 ms", "rest_run-pre_ses-01"), tITI) %>%
+  assert(in_set("32 ms", "2048 ms", "Rest Pre S1"), tITI) %>%
   # calculate the frequency spectrum for every 
   .[, by = .(classification, id, tITI, trial_tITI), {
     frequency_spectrum = stats::spectrum(
@@ -1373,32 +1371,6 @@ dt_pred_rest_freq = dt_pred_conc_slope %>%
     sem_upper = mean(mean_spec) + (sd(mean_spec)/sqrt(.N)),
     sem_lower = mean(mean_spec) - (sd(mean_spec)/sqrt(.N))
   )] %>% verify(all(num_subs == 32))
-```
-
-```{r}
-colors = c(hcl.colors(5, "Cividis")[c(1,5)], "gray")
-ggplot(data = dt_pred_rest_freq, aes(
-  color = tITI, y = as.numeric(mean_spec), x = as.numeric(freq_bins))) +
-  geom_ribbon(aes(fill = tITI, ymin = sem_lower, ymax = sem_upper),
-              alpha = 0.3, color = NA) +
-  geom_line() +
-  geom_point() +
-  xlab("Frequency (Hz)") + ylab("Power") +
-  scale_color_manual(name = "Condition", values = colors) +
-  scale_fill_manual(name = "Condition", values = colors) +
-  theme(legend.position = "top", legend.direction = "horizontal",
-        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
-        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE,
-                    xlim = c(0, 0.5), ylim = c(0.1, 0.25)) +
-  scale_x_continuous(labels = label_fill(seq(0, 0.5, 0.05), mod = 2),
-                     breaks = seq(0, 0.5, 0.05)) +
-  theme(panel.border = element_blank(), axis.line = element_line()) +
-  theme(axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank()) +
-  guides(color = guide_legend(nrow = 1))
 ```
 
 We insert a number of events with probabilities scaled at different SNR levels:
@@ -1675,7 +1647,7 @@ insert_stat_func = function(dt, variable) {
         num_subs = .N,
         mean_variable_diff = mean(get(variable)),
         pvalue = ttest_results$p.value,
-        tvalue = ttest_results$statistic,
+        tvalue = round(ttest_results$statistic, 2),
         df = ttest_results$parameter,
         sem_upper = mean(get(variable)) + (sd(get(variable))/sqrt(.N)),
         sem_lower = mean(get(variable)) - (sd(get(variable))/sqrt(.N))
@@ -1857,7 +1829,7 @@ fig_freq_lsp_insert = ggplot(data = plot_data, aes(
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) 
-fig_freq_lsp_insert
+
 ```
 
 ```{r}
@@ -1967,20 +1939,31 @@ panel_3 = plot_grid(fig_freq_lsp, fig_freq_exp, ncol = 2, labels = c("d", "e"))
 panel_4 = plot_grid(fig_snr_data_sd, fig_snr_pmat_sd, labels = c("f", "g"))
 panel_5 = plot_grid(fig_freq_lsp_insert, fig_freq_exp_insert, labels = c("h", "i"))
 plot_grid(plot_grid(panel_1, panel_2, ncol = 2), panel_3, panel_4, panel_5, ncol = 1)
+```
+
+```{r}
 ggsave(filename = "highspeed_plot_decoding_rest.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
+ggsave(filename = "wittkuhn_schuck_figure_5.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 12)
 ```
+
 
 Supplement
 
 ```{r}
 plot_grid(fig_prob_time_seq, fig_prob_diff_snr, fig_inserts, fig_inserts_slopes,
           fig_snr_pmat_slope, fig_snr_data_slope, labels = "auto", ncol = 2, nrow = 3)
+```
+
+```{r}
 ggsave(filename = "highspeed_plot_decoding_rest_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
 ```
+
 
 
 
