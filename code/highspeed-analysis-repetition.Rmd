@@ -6,7 +6,7 @@
 
 We load the data and relevant functions:
 
-```{r, warning=FALSE, message=FALSE, echo=TRUE}
+```{r, warning=FALSE, message=FALSE}
 # find the path to the root of this project:
 if (!requireNamespace("here")) install.packages("here")
 if ( basename(here::here()) == "highspeed" ) {
@@ -70,7 +70,6 @@ trial as the specific stimulus identities are not considered important here.
 We verify if the correct number of trials was used for the calculations.
 Next, we average across participants. We calculate the average probability
 of each serial event and also calculate the standard error of them mean.
-Finally, we are plotting the data
 
 ```{r}
 dt_pred_rep_timecourses = dt_pred_rep %>%
@@ -85,10 +84,13 @@ dt_pred_rep_timecourses = dt_pred_rep %>%
     mean_probability = mean(mean_probability),
     sem_upper = mean(mean_probability) + (sd(mean_probability)/sqrt(.N)),
     sem_lower = mean(mean_probability) - (sd(mean_probability)/sqrt(.N))
-  )] %>% verify(all(num_sub == 36))
+  )] %>%
+  verify(all(num_sub == 36))
 ```
 
-```{r, echo=TRUE}
+We define the colors used for plotting as well as the facet labels:
+
+```{r}
 # define colors for plotting:
 colors_inseq = colorRampPalette(c("dodgerblue", "red"), space = "Lab")(2)
 colors_outseq = colorRampPalette(c("gray70", "gray90"), alpha = TRUE)(3)
@@ -107,6 +109,8 @@ names(facet_labels_new) = facet_labels_old
 ```
 
 #### Figure 4a
+
+We plot the probability time courses:
 
 ```{r, echo=TRUE}
 trs = c(2, 7)
@@ -146,7 +150,7 @@ fig_s1_a = plot_rep_probas(data = subset(dt_pred_rep_timecourses, classification
 fig_a; fig_s1_a; 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_timecourse_forward_backward.pdf",
        plot = fig_a, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 4.5, height = 2.5)
@@ -159,6 +163,8 @@ ggsave(filename = "highspeed_plot_decoding_repetition_timecourses_supplement.pdf
 
 #### Figure 4b
 
+We calculate the mean decoding probabilities for each event:
+
 ```{r, results="hold"}
 # define the subset of selected TRs:
 trs = seq(2, 7)
@@ -166,7 +172,7 @@ trs = seq(2, 7)
 dt_pred_rep_prob = dt_pred_rep %>%
   # only consider the two extreme conditions (2 and 9):
   filter(change %in% c(2, 9)) %>% verify(length(unique(change)) == 2) %>% setDT(.) %>%
-  # verify that the number of reptition trials per condition is correct:
+  # verify that the number of repetition trials per condition is correct:
   verify(all(.[, by = .(classification, id, change), .(
     num_trials = length(unique(trial))
   )]$num_trials == 5)) %>%
@@ -260,7 +266,7 @@ fig_b = ggplot(data = subset(dt_pred_rep_mean_prob_plot, classification == "ovr"
 fig_b
 ```
 
-```{r, echo = FALSE}
+```{r, echo=FALSE, include=FALSE,}
 ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs.pdf",
        plot = fig_b, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 4, height = 3)
@@ -363,7 +369,7 @@ fig_c = ggplot(data = dt_plot, aes(
 fig_c
 ```
 
-```{r}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_average_probabilities.pdf",
        plot = fig_c, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
@@ -450,7 +456,7 @@ test1; test2; test3
 p.adjust(c(test1$p.value, test2$p.value, test3$p.value), method = "bonferroni", n = 6)
 ```
 
-```{r, echo = FALSE}
+```{r}
 fig_d = ggplot(data = subset(dt_pred_rep_all_reps_mean, classification == "ovr"), aes(
   x = as.factor(occurence), y = as.numeric(mean_probability),
   group = as.factor(position_label), color = as.factor(position_label))) +
@@ -478,7 +484,7 @@ fig_d = ggplot(data = subset(dt_pred_rep_all_reps_mean, classification == "ovr")
 fig_d
 ```
 
-```{r, echo = FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_duration_supplement.pdf",
        plot = fig_d, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 3.5, height = 2)
@@ -578,10 +584,6 @@ emmeans_results = emmeans(lme_rep_count, list(pairwise ~ type | change))
 emmeans_summary = summary(emmeans_results[[2]])
 ```
 
-
-
-
-
 ```{r, echo = FALSE}
 dt_significance = data.table(
   change = rep(emmeans_summary$change, each = 2),
@@ -642,7 +644,8 @@ fig_e = ggplot(data = subset(dt_pred_rep_count, classification == "ovr" & change
         axis.ticks.x = element_line(colour = "white"))
 fig_e
 ```
-```{r}
+
+```{r, echo=FALSE, eval=TRUE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_maxprob.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
@@ -801,7 +804,7 @@ dt_pred_rep_step_mean = dt_pred_rep_step_version1 %>%
   filter(classification == "ovr")
 ```
 
-```{r, dev = "cairo_pdf"}
+```{r}
 plot_rep_trans_mat = function(dt){
   ggplot(data = dt, mapping = aes(
     x = as.factor(head), y = fct_rev(as_factor(tail)),
@@ -860,7 +863,7 @@ fig_trans_mat
 ```
 
 
-```{r, echo = FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 8, height = 3)
@@ -915,7 +918,7 @@ fig_trans_prop = plot_rep_trans(dt = subset(
 fig_trans_prop
 ```
 
-```{r, echo = FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_transition_types.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
@@ -952,7 +955,7 @@ dt_pred_rep_trans_test
 
 ## Figure 4
 
-```{r, fig.width = 10, fig.height = 10, dev = "cairo_pdf"}
+```{r, fig.width = 10, fig.height = 10}
 plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
           #plot_grid(fig_c, fig_d, labels = c("c", "d")),
           plot_grid(fig_c, fig_trans_prop, labels = c("c", "d")),
@@ -960,7 +963,7 @@ plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
           ncol = 1, label_fontface = "bold")
 ```
 
-```{r}
+```{r, echo=FALSE, include=FALSE, eval=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
