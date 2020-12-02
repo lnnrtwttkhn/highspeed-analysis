@@ -106,6 +106,8 @@ facet_labels_old = as.character(sort(unique(dt_pred_rep_timecourses$change)))
 names(facet_labels_new) = facet_labels_old
 ```
 
+#### Figure 4a
+
 ```{r, echo=TRUE}
 trs = c(2, 7)
 plot_rep_probas <- function(data, xmin = 1, xmax = 13) {
@@ -433,9 +435,9 @@ dt_pred_rep_all_reps_stats = dt_pred_rep_all_reps_sub %>%
   spread(key = position_label, value = probability, drop = FALSE) %>%
   filter(classification == "ovr")
 # some ugly code to perform three t-tests:
-summary(dt_pred_rep_all_reps_stats$pos_2); sd(dt_pred_rep_all_reps_stats$pos_2)
-summary(dt_pred_rep_all_reps_stats$pos_1); sd(dt_pred_rep_all_reps_stats$pos_1)
-summary(dt_pred_rep_all_reps_stats$pos_none); sd(dt_pred_rep_all_reps_stats$pos_none)
+summary(dt_pred_rep_all_reps_stats$pos_2); round(sd(dt_pred_rep_all_reps_stats$pos_2), 2)
+summary(dt_pred_rep_all_reps_stats$pos_1); round(sd(dt_pred_rep_all_reps_stats$pos_1), 2)
+summary(dt_pred_rep_all_reps_stats$pos_none); round(sd(dt_pred_rep_all_reps_stats$pos_none), 2)
 # perform separate t-tests
 test1 = t.test(dt_pred_rep_all_reps_stats$pos_2, dt_pred_rep_all_reps_stats$pos_1,
        paired = TRUE, alternative = "two.sided")
@@ -487,8 +489,6 @@ ggsave(filename = "highspeed_plot_decoding_repetition_duration_supplement.pdf",
 Are there more within sequence items in the classifier predictions?
 To this end, we check if serial events 1 and 2 (of 2) are decoded more
 often than other (out-of-sequence) serial events in the repetition trials.
-
-#### Figure 4d
 
 ```{r}
 # define the number of TRs per trial (used below):
@@ -660,7 +660,7 @@ briefly presented item in a 32 ms sequence compared to items that were not
 presented, when the item (last event) is preceded by a statistical signal
 (change = 9 condition).
 
-```{r}
+```{r, echo=FALSE, eval=FALSE}
 # label all data points with position = 1 or 2 as part of the sequnece:
 dt_pred_rep_count$type_group[dt_pred_rep_count$type %in% c(1,2)] = "in_seq"
 # label all data points with positions > 2 as *not* part of the sequence:
@@ -722,6 +722,8 @@ transition_type <- function(head, tail){
   return(transition_type)
 }
 ```
+
+#### Figure 4e
 
 ```{r}
 trs = seq(2, 7)
@@ -809,7 +811,7 @@ plot_rep_trans_mat = function(dt){
     xlab("Decoded event at t") +
     ylab("Decoded event at t + 1") +
     facet_wrap(~ as.factor(change), labeller = as_labeller(facet_labels_new)) +
-    scale_size(range = c(1,15), name = "Proportion per trial (in %)",
+    scale_size(range = c(1, 15), name = "Proportion per trial (in %)",
                guide = guide_legend(
                  title.position = "top", direction = "horizontal",
                  nrow = 1,
@@ -864,7 +866,7 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
        dpi = "retina", width = 8, height = 3)
 ```
 
-
+#### Figure 4d
 
 ```{r, echo = FALSE, dev = "cairo_pdf"}
 plot_rep_trans <- function(dt){
@@ -947,6 +949,8 @@ dt_pred_rep_trans_test = dt_pred_rep_step_version1 %>%
   filter(classification == "ovr")
 dt_pred_rep_trans_test
 ```
+
+## Figure 4
 
 ```{r, fig.width = 10, fig.height = 10, dev = "cairo_pdf"}
 plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
