@@ -1,19 +1,28 @@
 ## Repetition trials
 
-### Initialization
+### Preparation
+
+#### Initialization
 
 We load the data and relevant functions:
 
 ```{r, warning=FALSE, message=FALSE, echo=TRUE}
-# find the root path of the project:
-path_root <- rprojroot::find_rstudio_root_file()
-# define the path to the start-up file:
-path_startup = file.path(path_root, "code", "decoding", "decoding_r")
-# source all functions and data in the start-up file:
-source(file.path(path_startup, "highspeed_analysis_setup.R"))
-# list of participants with chance performance on sequence and repetition trials:
-sub_exclude = c("sub-24", "sub-31", "sub-37", "sub-40")
+# find the path to the root of this project:
+if (!requireNamespace("here")) install.packages("here")
+if ( basename(here::here()) == "highspeed" ) {
+  path_root = here::here("highspeed-analysis")
+} else {
+  path_root = here::here()
+}
+# source all relevant functions from the setup R script:
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
+# create a list of participants to exclude based on behavioral performance:
+sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
 ```
+
+#### Prepare events and decoding data
+
+We prepare the behavioral events data and the decoding data of repetition trials:
 
 ```{r}
 # create a subset of the events data table only including repetition task events:
@@ -52,7 +61,7 @@ dt_pred_rep = dt_pred %>%
   .[position == 2 & change == 16, ":=" (occurence = max(change) + 1 - change)]
 ```
 
-# Probability time-courses
+### Probability time-courses
 
 First, we average across trials for each factor grouping and calculate
 the mean classification probability for each serial event. Note, that
@@ -79,7 +88,7 @@ dt_pred_rep_timecourses = dt_pred_rep %>%
   )] %>% verify(all(num_sub == 36))
 ```
 
-```{r, echo = FALSE}
+```{r, echo=TRUE}
 # define colors for plotting:
 colors_inseq = colorRampPalette(c("dodgerblue", "red"), space = "Lab")(2)
 colors_outseq = colorRampPalette(c("gray70", "gray90"), alpha = TRUE)(3)
@@ -97,7 +106,7 @@ facet_labels_old = as.character(sort(unique(dt_pred_rep_timecourses$change)))
 names(facet_labels_new) = facet_labels_old
 ```
 
-```{r, echo = FALSE}
+```{r, echo=TRUE}
 trs = c(2, 7)
 plot_rep_probas <- function(data, xmin = 1, xmax = 13) {
   # reduced the data frame to plot rectangles (see below):
@@ -135,7 +144,7 @@ fig_s1_a = plot_rep_probas(data = subset(dt_pred_rep_timecourses, classification
 fig_a; fig_s1_a; 
 ```
 
-```{r, echo = FALSE}
+```{r, echo=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition_timecourse_forward_backward.pdf",
        plot = fig_a, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 4.5, height = 2.5)
@@ -144,7 +153,9 @@ ggsave(filename = "highspeed_plot_decoding_repetition_timecourses_supplement.pdf
        dpi = "retina", width = 6, height = 5)
 ```
 
-## Mean probability
+### Mean probabilities
+
+#### Figure 4b
 
 ```{r, results="hold"}
 # define the subset of selected TRs:
@@ -195,7 +206,7 @@ print(emmeans_results)
 emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
 ```
 
-```{r, echo = FALSE}
+```{r}
 dt_significance = data.table(
   contrast = emmeans_results$contrast,
   position_label = rep(c("1", "2", "none"), each = 2),
@@ -205,7 +216,7 @@ dt_significance = data.table(
 )
 ```
 
-```{r, echo = FALSE}
+```{r}
 fig_b = ggplot(data = subset(dt_pred_rep_mean_prob_plot, classification == "ovr"), aes(
   x = as.factor(position_label), y = as.numeric(probability),
   fill = as.factor(position_label))) +
@@ -253,7 +264,7 @@ ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs
        dpi = "retina", width = 4, height = 3)
 ```
 
-## 
+#### Figure 4c
 
 ```{r}
 trs = seq(2, 7)
@@ -298,7 +309,7 @@ dt_significance = data.table(
 )
 ```
 
-```{r, echo = FALSE}
+```{r}
 dt_plot = dt_pred_rep_a2_sub %>% filter(classification == "ovr" & change %in% c(2,9))
 fig_c = ggplot(data = dt_plot, aes(
   x = as.factor(position_label), y = as.numeric(probability),
@@ -356,12 +367,11 @@ ggsave(filename = "highspeed_plot_decoding_repetition_average_probabilities.pdf"
        dpi = "retina", width = 5, height = 3)
 ```
 
-## SI: 
+#### Figure S8
 
 ```{r}
 # select specific trs:
 trs = seq(2, 7)
-# 
 dt_pred_rep_all_reps_sub = dt_pred_rep %>%
   # filter out the extremely long condition (with 16 items):
   filter(occurence != 15) %>% setDT(.) %>%
@@ -406,7 +416,7 @@ summary(lme_pred_rep_all_reps)
 anova(lme_pred_rep_all_reps)
 ```
 
-LME model exclduing out-of-sequence events:
+LME model excluding out-of-sequence events:
 
 ```{r}
 lme_pred_rep_all_reps_reduced = lmer(probability ~ position_label * occurence + (1 + position_label + occurence|id),
@@ -437,7 +447,6 @@ test1; test2; test3
 # correct for multiple comparisons
 p.adjust(c(test1$p.value, test2$p.value, test3$p.value), method = "bonferroni", n = 6)
 ```
-
 
 ```{r, echo = FALSE}
 fig_d = ggplot(data = subset(dt_pred_rep_all_reps_mean, classification == "ovr"), aes(
@@ -473,11 +482,13 @@ ggsave(filename = "highspeed_plot_decoding_repetition_duration_supplement.pdf",
        dpi = "retina", width = 3.5, height = 2)
 ```
 
-# Step-size analysis
+### Step-sizes
 
 Are there more within sequence items in the classifier predictions?
 To this end, we check if serial events 1 and 2 (of 2) are decoded more
 often than other (out-of-sequence) serial events in the repetition trials.
+
+#### Figure 4d
 
 ```{r}
 # define the number of TRs per trial (used below):
@@ -550,9 +561,9 @@ dt_pred_rep_count_mean = dt_pred_rep_count %>%
   )] %>%
   # check if the number of data points (here, participants) is correct:
   verify(num_subs == 36) %>%
-  verify(.[, by = .(classification, change), .(
-    mean_count = sum(mean_count)
-  )]$mean_count == 100) %>%
+  #verify(.[, by = .(classification, change), .(
+  #  mean_count = sum(mean_count)
+  #)]$mean_count == 100) %>%
   # order the data table:
   setorder(., classification, change, type)
 ```
