@@ -1,0 +1,957 @@
+## Repetition trials
+
+### Initialization
+
+We load the data and relevant functions:
+
+```{r, warning=FALSE, message=FALSE, echo=TRUE}
+# find the root path of the project:
+path_root <- rprojroot::find_rstudio_root_file()
+# define the path to the start-up file:
+path_startup = file.path(path_root, "code", "decoding", "decoding_r")
+# source all functions and data in the start-up file:
+source(file.path(path_startup, "highspeed_analysis_setup.R"))
+# list of participants with chance performance on sequence and repetition trials:
+sub_exclude = c("sub-24", "sub-31", "sub-37", "sub-40")
+```
+
+```{r}
+# create a subset of the events data table only including repetition task events:
+dt_events_rep = dt_events %>%
+  filter(condition == "repetition" & trial_type == "stimulus") %>%
+  setDT(.)
+# create a data table containing all classifier predictions on repetition trials:
+dt_pred_rep = dt_pred %>%
+  # create a subset of the decoding data only including the repetition task data:
+  filter(condition == "repetition" & class != "other" & mask == "cv" & stim != "cue") %>%
+  setDT(.) %>%
+  # filter excluded participants:
+  filter(!(id %in% sub_exclude)) %>%
+  setDT(.) %>%
+  # add the serial position, change trial and target cue to the repetition data table:
+  .[, c("position", "change", "trial_cue") := get_pos(.SD, dt_events_rep),
+    by = .(id, trial, class), .SDcols = c("id", "trial", "class")] %>%
+  # add a counter for the number of change trials in the repetition data:
+  .[, by = .(id, classifier, class, change), ":=" (
+    trial_change = rep(1:length(unique(trial)), each = max(seq_tr))
+  )] %>%
+  # add random position indices for out-of-class stimuli:
+  .[is.na(position), by = .(id, classification, trial), ":=" (
+    position = rep(permute(3:5), each = max(seq_tr))
+  )] %>%
+  # check if there are any NA values:
+  verify(!is.na(position)) %>%
+  # create a new variable containing the position label by copying the position:
+  mutate(position_label = position) %>%
+  # re-label all positions > 2 to "other":
+  transform(position_label = ifelse(position_label > 2, "none", position_label)) %>%
+  setDT(.) %>%
+  # create a new variable counting the occurrence of each event position:
+  .[position != 2, ":=" (occurence = change - 1)] %>%
+  .[position == 2 & change <= 9, ":=" (occurence = max(change) + 1 - change)] %>%
+  .[position == 2 & change == 16, ":=" (occurence = max(change) + 1 - change)]
+```
+
+# Probability time-courses
+
+First, we average across trials for each factor grouping and calculate
+the mean classification probability for each serial event. Note, that
+this approach averages across the specific stimuli used in any given
+trial as the specific stimulus identities are not considered important here.
+We verify if the correct number of trials was used for the calculations.
+Next, we average across participants. We calculate the average probability
+of each serial event and also calculate the standard error of them mean.
+Finally, we are plotting the data
+
+```{r}
+dt_pred_rep_timecourses = dt_pred_rep %>%
+  # calculate the mean probability for every repetition condition and TR
+  .[, by = .(classification, id, seq_tr, change, position), .(
+    num_events = .N,
+    mean_probability = mean(probability * 100)
+  )] %>% verify(num_events == 5) %>%
+  # average mean probability across participants:
+  .[, by = .(classification, seq_tr, change, position), .(
+    num_sub = .N,
+    mean_probability = mean(mean_probability),
+    sem_upper = mean(mean_probability) + (sd(mean_probability)/sqrt(.N)),
+    sem_lower = mean(mean_probability) - (sd(mean_probability)/sqrt(.N))
+  )] %>% verify(all(num_sub == 36))
+```
+
+```{r, echo = FALSE}
+# define colors for plotting:
+colors_inseq = colorRampPalette(c("dodgerblue", "red"), space = "Lab")(2)
+colors_outseq = colorRampPalette(c("gray70", "gray90"), alpha = TRUE)(3)
+colors = c(colors_inseq, colors_outseq)
+# change the facet labels such that it shows the time-point of the change from
+# the first to the second unique stimulus:
+facet_labels_new = c(sort(unique(paste0(dt_pred_rep_timecourses$change[
+  dt_pred_rep_timecourses$change != 16]-1, "/", 10-dt_pred_rep_timecourses$change[
+  dt_pred_rep_timecourses$change != 16]))), unique(paste0(dt_pred_rep_timecourses$change[
+  dt_pred_rep_timecourses$change == 16]-1, "/1")))
+facet_labels_new[1] = paste("short", sprintf('\u2192'), "long")
+facet_labels_new[1] = "Forward interference"
+facet_labels_new[length(facet_labels_new)-1] = "Backward interference"
+facet_labels_old = as.character(sort(unique(dt_pred_rep_timecourses$change)))
+names(facet_labels_new) = facet_labels_old
+```
+
+```{r, echo = FALSE}
+trs = c(2, 7)
+plot_rep_probas <- function(data, xmin = 1, xmax = 13) {
+  # reduced the data frame to plot rectangles (see below):
+  data_factor_reduced = subset(data, position == 1 & seq_tr == 1)
+  ggplot(data, aes(x = as.numeric(seq_tr), y = as.numeric(mean_probability),
+                   color = as.factor(position), fill = as.factor(position))) +
+    facet_wrap(~ as.factor(change), ncol = 3, labeller = as_labeller(facet_labels_new)) +
+    geom_rect(data = data_factor_reduced, fill = "gray", alpha = 0.15, color = NA,
+              aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = 60)) +
+    geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.5, color = NA) +
+    geom_line() +
+    xlab("Time from sequence onset (TRs)") + ylab("Probability (%)") +
+    annotate("text", x = 13, y = 0, label = "1 TR = 1.25 s",
+             hjust = 1, size = rel(2)) +
+    scale_colour_manual(name = "Serial event", values = colors) +
+    scale_fill_manual(name = "Serial event", values = colors) +
+    scale_x_continuous(labels = label_fill(seq(1,13,1), mod = 4), breaks = seq(1,13,1)) +
+    coord_capped_cart(left = "both", bottom = "both", ylim = c(0,60)) +
+    theme(strip.text.x = element_text(margin = margin(b = 3, t = 2))) +
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom", legend.direction = "horizontal",
+          legend.justification = "center", legend.margin = margin(0,0,0,0),
+          legend.box.margin = margin(t = -5, r = 0, b = 10, l = 0)) +
+    theme(panel.background = element_blank()) +
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+}
+plot_data = dt_pred_rep_timecourses %>% filter(classification == "ovr" & change %in% c(2,9))
+fig_a = plot_rep_probas(data = plot_data, xmin = trs[1] - 0.5, xmax = trs[2] + 0.5)
+fig_s1_a = plot_rep_probas(data = subset(dt_pred_rep_timecourses, classification == "ovr"),
+                           xmin = trs[1] - 0.5, xmax = trs[2] + 0.5)
+fig_a; fig_s1_a; 
+```
+
+```{r, echo = FALSE}
+ggsave(filename = "highspeed_plot_decoding_repetition_timecourse_forward_backward.pdf",
+       plot = fig_a, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 4.5, height = 2.5)
+ggsave(filename = "highspeed_plot_decoding_repetition_timecourses_supplement.pdf",
+       plot = fig_s1_a, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 6, height = 5)
+```
+
+## Mean probability
+
+```{r, results="hold"}
+# define the subset of selected TRs:
+trs = seq(2, 7)
+# calculate the mean probability for the event types across conditions:
+dt_pred_rep_prob = dt_pred_rep %>%
+  # only consider the two extreme conditions (2 and 9):
+  filter(change %in% c(2, 9)) %>% verify(length(unique(change)) == 2) %>% setDT(.) %>%
+  # verify that the number of reptition trials per condition is correct:
+  verify(all(.[, by = .(classification, id, change), .(
+    num_trials = length(unique(trial))
+  )]$num_trials == 5)) %>%
+  # filter specific TRs:
+  filter(seq_tr %in% trs) %>%
+  transform(probability_z = scale(probability)) %>%
+  filter(classification == "ovr") %>% setDT(.)
+
+# calculate the mean probability for each position label:
+dt_pred_rep_mean_prob = dt_pred_rep_prob %>%
+  # calculate the mean probability for each position label on each trial:
+  .[, by = .(id, classification, trial, position_label), .(
+    num_events = .N,
+    probability = mean(probability * 100)
+  )] %>%
+  # verify that the number of events for each position label is correct:
+  verify(all(num_events %in% c(length(trs), length(trs) * 3))) %>%
+  # set the position label as factor and z-score the probability values:
+  mutate(position_label = as.factor(position_label)) %>%
+  transform(probability_z = scale(probability)) %>%
+  setorder(id, classification, trial, position_label)
+
+# average the data for each position label across trials:
+dt_pred_rep_mean_prob_plot = dt_pred_rep_mean_prob %>% setDT(.) %>%
+  .[, by = .(id, classification, position_label), .(
+    num_trials = .N,
+    probability = mean(probability)
+  )] %>% verify(all(num_trials == 10))
+```
+
+```{r}
+# define linear mixed effects model with by-participant random intercepts:
+lme_rep_mean_prob = lmer(probability ~ position_label + (1 + position_label|id), 
+      data = subset(dt_pred_rep_mean_prob, classification == "ovr"), control = lcctrl)
+summary(lme_rep_mean_prob)
+anova(lme_rep_mean_prob)
+emmeans_results = emmeans(lme_rep_mean_prob, list(pairwise ~ position_label))
+print(emmeans_results)
+emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
+```
+
+```{r, echo = FALSE}
+dt_significance = data.table(
+  contrast = emmeans_results$contrast,
+  position_label = rep(c("1", "2", "none"), each = 2),
+  group = c(1.5, 2.0, 2.5),
+  probability = c(55, 75, 65),
+  pvalue = emmeans_pvalues
+)
+```
+
+```{r, echo = FALSE}
+fig_b = ggplot(data = subset(dt_pred_rep_mean_prob_plot, classification == "ovr"), aes(
+  x = as.factor(position_label), y = as.numeric(probability),
+  fill = as.factor(position_label))) +
+  geom_flat_violin(scale = "width", trim = FALSE, aes(color = NA),
+                   position = position_nudge(x = 0.2, y = 0), alpha = 0.4) +
+  geom_point(stat = "summary", fun = "mean", color = "black", pch = 23, size = 3,
+           position = position_nudge(x = 0.125, y = 0)) + 
+  geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0,
+                position = position_nudge(x = 0.125, y = 0), color = "black") +
+  geom_boxplot(outlier.colour = "black", outlier.shape = NA, alpha = 0.5,
+               notch = FALSE, outlier.alpha = 1, width = 0.05, color = "black",
+               position = position_nudge(x = 0.25, y = 0)) +
+  geom_point(position = position_jitter(width = .05, height = 0, seed = 4),
+             pch = 21, alpha = 1, color = "black") +
+  xlab("Serial event") + ylab("Probability (%)") +
+  scale_fill_manual(name = "Serial event", values = colors) +
+  scale_color_manual(name = "Serial event", values = colors) +
+  #scale_y_continuous(labels = label_fill(seq(0, 100, 10), mod = 2), breaks = seq(0, 100, 10)) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(0, 100)) +
+  theme(legend.position = "bottom", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0,0,0,0),
+        legend.box.margin = margin(t = -10, r = 0, b = 10, l = 0)) +
+  theme(panel.background = element_blank()) +
+  #theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+  geom_line(data = dt_significance, aes(group = group),
+            linetype = "solid", position = position_nudge(x = 0.1, y = 0)) +
+  geom_text(data = dt_significance %>% distinct(group, probability, .keep_all = TRUE),
+            aes(x = group, y = probability + 1.5, label = pvalue), color = "black",
+            position = position_nudge(x = 0.125, y = 4), parse = FALSE) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.line.x = element_line(colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_line(colour = "white"))
+fig_b
+```
+
+```{r, echo = FALSE}
+ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs.pdf",
+       plot = fig_b, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 4, height = 3)
+```
+
+## 
+
+```{r}
+trs = seq(2, 7)
+# calculate means for each participant:
+dt_pred_rep_a2_sub = dt_pred_rep %>%
+  # only consider the two extreme conditions (2 and 9):
+  #filter(change %in% c(2,9)) %>%
+  filter(seq_tr %in% trs) %>%
+  # set the change variable to a factor:
+  transform(change = as.factor(change)) %>%
+  transform(position_label = as.factor(position_label)) %>% setDT(.) %>%
+  # check if the number of change conditions really only equals 2:
+  #verify(length(unique(change)) == 2) %>%
+  .[, by = .(id, classification, change, position_label), .(
+    probability = mean(probability * 100)
+  )] %>%
+  # standardize the probabilities:
+  #mutate(probability_z = scale(probability)) %>% setDT(.) %>%
+  setorder(id, classification, change, position_label) %>%
+  filter(classification == "ovr") %>% setDT(.)
+```
+
+```{r}
+lme_data = dt_pred_rep_a2_sub %>% filter(classification == "ovr" & change %in% c(2,9))
+lme_rep_prob_rep = lmer(probability ~ position_label * change + (1 + position_label + change|id),
+                        data = lme_data, na.action = na.omit, control = lcctrl)
+summary(lme_rep_prob_rep)
+anova(lme_rep_prob_rep)
+emmeans_results = emmeans(lme_rep_prob_rep, list(pairwise ~ position_label | change))
+print(emmeans_results)
+emmeans_summary = summary(emmeans_results[[2]])
+```
+
+```{r}
+dt_significance = data.table(
+  change = rep(emmeans_summary$change, each = 2),
+  contrast = rep(emmeans_summary$contrast, each = 2),
+  pvalue = rep(round_pvalues(emmeans_summary$p.value), each = 2),
+  group = rep(c(1.5, 2.0, 2.5), each = 2),
+  position_label = c("1", "2", "1", "none", "2", "none"),
+  probability = rep(c(60, 80, 70), each = 2)
+)
+```
+
+```{r, echo = FALSE}
+dt_plot = dt_pred_rep_a2_sub %>% filter(classification == "ovr" & change %in% c(2,9))
+fig_c = ggplot(data = dt_plot, aes(
+  x = as.factor(position_label), y = as.numeric(probability),
+  fill = as.factor(position_label))) +
+  geom_flat_violin(
+    scale = "width", trim = FALSE, aes(color = NA),
+    position = position_nudge(x = 0.25, y = 0), alpha = 0.4) +
+  geom_point(
+    stat = "summary", fun = "mean", color = "black", pch = 23, size = 3,
+    position = position_nudge(x = 0.15, y = 0)) + 
+  geom_errorbar(
+    stat = "summary", fun.data = "mean_se", width = 0.0,
+    position = position_nudge(x = 0.15, y = 0), color = "black") +
+  geom_boxplot(
+    outlier.colour = "black", outlier.shape = NA, outlier.size = 50,
+    notch = FALSE, outlier.alpha = 1, width = 0.05, color = "black",
+    position = position_nudge(x = 0.35, y = 0), alpha = 0.5) +
+  geom_point(
+    position = position_jitter(width = .05, height = 0, seed = 4),
+    pch = 21, alpha = 1) +
+  facet_wrap(~ as.factor(change), labeller = as_labeller(facet_labels_new)) +
+  xlab("Serial event") + ylab("Probability (%)") +
+  scale_fill_manual(name = "Serial event", values = colors) +
+  scale_color_manual(name = "Serial event", values = colors) +
+  #scale_y_continuous(labels = label_fill(seq(0, 100, 10), mod = 2), breaks = seq(0, 100, 10)) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(0, 100), expand = TRUE) +
+  theme(legend.position = "bottom", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0,0,0,0),
+        legend.box.margin = margin(t = -10, r = 0, b = 10, l = 0)) +
+  theme(panel.background = element_blank()) +
+  theme(strip.text.x = element_text(margin = margin(b = 3, t = 2))) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  #theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+  geom_line(data = dt_significance, aes(group = group, x = position_label, y = probability),
+            linetype = "solid", position = position_nudge(x = 0.1, y = 0)) +
+  geom_text(data = dt_significance %>% distinct(group, change, probability, .keep_all = TRUE),
+            aes(x = group, y = probability + 1, label = pvalue), color = "black",
+            position = position_nudge(x = 0.1, y = 4), parse = FALSE) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.line.x = element_line(colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_line(colour = "white"))
+fig_c
+```
+
+```{r}
+ggsave(filename = "highspeed_plot_decoding_repetition_average_probabilities.pdf",
+       plot = fig_c, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5, height = 3)
+```
+
+## SI: 
+
+```{r}
+# select specific trs:
+trs = seq(2, 7)
+# 
+dt_pred_rep_all_reps_sub = dt_pred_rep %>%
+  # filter out the extremely long condition (with 16 items):
+  filter(occurence != 15) %>% setDT(.) %>%
+  # filter for specific trs:
+  filter(seq_tr %in% trs) %>% setDT(.) %>%
+  # transform the main variables of interest:
+  transform(
+    occurence = as.numeric(occurence),
+    position_label = as.factor(position_label),
+    probability = probability * 100
+  ) %>% setDT(.) %>%
+  # calculate the mean probability for each serial event item (first, second, other)
+  # separately depending on the number of indiviual repetitions
+  .[, by = .(id, classification, occurence, position_label), .(
+    probability = mean(probability)
+  )] %>%
+  setorder(., classification, id, occurence, position_label)
+
+dt_pred_rep_all_reps_mean = dt_pred_rep_all_reps_sub %>%
+  # average across participants and calculate the standard error of the mean:
+  . [, by = .(classification, occurence, position_label), {
+    list(
+      mean_probability = mean(probability),
+      num_subs = .N,
+      sem_upper = mean(probability) + (sd(probability)/sqrt(.N)),
+      sem_lower = mean(probability) - (sd(probability)/sqrt(.N))
+    )}] %>%
+  verify(all(num_subs == 36)) %>%
+  setorder(., classification, occurence, position_label)
+```
+
+Are the short repetitions of event 1 and event 2 different from noise:
+
+LME model including all three event types:
+
+```{r}
+# model including all three event types:
+lme_pred_rep_all_reps = lmer(probability ~ position_label * occurence + (1 + position_label + occurence|id),
+  data = subset(dt_pred_rep_all_reps_sub, classification == "ovr" & occurence != 15),
+  na.action = na.omit, control = lcctrl)
+summary(lme_pred_rep_all_reps)
+anova(lme_pred_rep_all_reps)
+```
+
+LME model exclduing out-of-sequence events:
+
+```{r}
+lme_pred_rep_all_reps_reduced = lmer(probability ~ position_label * occurence + (1 + position_label + occurence|id),
+  data = subset(dt_pred_rep_all_reps_sub, classification == "ovr" & occurence != 15 & position_label != "none"),
+  na.action = na.omit, control = lcctrl)
+summary(lme_pred_rep_all_reps_reduced)
+anova(lme_pred_rep_all_reps_reduced)
+```
+
+```{r}
+dt_pred_rep_all_reps_stats = dt_pred_rep_all_reps_sub %>%
+  filter(occurence %in% c(8)) %>% setDT(.) %>%
+  transform(position_label = paste0("pos_", position_label)) %>%
+  spread(key = position_label, value = probability, drop = FALSE) %>%
+  filter(classification == "ovr")
+# some ugly code to perform three t-tests:
+summary(dt_pred_rep_all_reps_stats$pos_2); sd(dt_pred_rep_all_reps_stats$pos_2)
+summary(dt_pred_rep_all_reps_stats$pos_1); sd(dt_pred_rep_all_reps_stats$pos_1)
+summary(dt_pred_rep_all_reps_stats$pos_none); sd(dt_pred_rep_all_reps_stats$pos_none)
+# perform separate t-tests
+test1 = t.test(dt_pred_rep_all_reps_stats$pos_2, dt_pred_rep_all_reps_stats$pos_1,
+       paired = TRUE, alternative = "two.sided")
+test2 = t.test(dt_pred_rep_all_reps_stats$pos_2, dt_pred_rep_all_reps_stats$pos_none,
+       paired = TRUE, alternative = "two.sided")
+test3 = t.test(dt_pred_rep_all_reps_stats$pos_1, dt_pred_rep_all_reps_stats$pos_none,
+       paired = TRUE, alternative = "two.sided")
+test1; test2; test3
+# correct for multiple comparisons
+p.adjust(c(test1$p.value, test2$p.value, test3$p.value), method = "bonferroni", n = 6)
+```
+
+
+```{r, echo = FALSE}
+fig_d = ggplot(data = subset(dt_pred_rep_all_reps_mean, classification == "ovr"), aes(
+  x = as.factor(occurence), y = as.numeric(mean_probability),
+  group = as.factor(position_label), color = as.factor(position_label))) +
+  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper,
+                  fill = as.factor(position_label)), alpha = 0.5) +
+  geom_line(size = 0.7, mapping = aes(color = as.factor(position_label))) +
+  xlab("Number of item repetitions") +
+  ylab("Probability (in %)") +
+  scale_fill_manual(name = "Serial event", values = colors) +
+  scale_color_manual(name = "Serial event", values = colors) +
+  scale_y_continuous(labels = label_fill(seq(0, 100, 10), mod = 2), breaks = seq(0, 100, 10)) +
+  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,40)) +
+  theme(legend.position = "right", legend.direction = "vertical") +
+  guides(color = guide_legend(ncol = 1)) +
+  theme(legend.position = "right", legend.direction = "vertical",
+        legend.justification = "center", legend.margin = margin(0,0,0,0),
+        legend.box.margin = margin(t = 0, r = , b = 0, l = -20)) +
+  theme(panel.background = element_blank()) +
+  theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+  theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+fig_d
+```
+
+```{r, echo = FALSE}
+ggsave(filename = "highspeed_plot_decoding_repetition_duration_supplement.pdf",
+       plot = fig_d, device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 3.5, height = 2)
+```
+
+# Step-size analysis
+
+Are there more within sequence items in the classifier predictions?
+To this end, we check if serial events 1 and 2 (of 2) are decoded more
+often than other (out-of-sequence) serial events in the repetition trials.
+
+```{r}
+# define the number of TRs per trial (used below):
+select_trs = seq(2, 7)
+dt_pred_rep_count = dt_pred_rep %>%
+  # get the position with the highest probability:
+  .[, by = .(classification, id, trial, change, seq_tr), ":=" (
+    num_events = .N,
+    position_max_prob = as.numeric(probability == max(probability))
+  )] %>%
+  # check if the data consisted of 5 trials per TR:
+  verify(num_events == 5) %>%
+  # check if there is only one event with the maximum probability:
+  verify(.[, by = .(classification, id, trial, change, seq_tr), .(
+    num_max_events = sum(position_max_prob)
+  )]$num_max_events == 1) %>%
+  # get the position with the highest probability:
+  filter(position_max_prob == 1) %>%
+  setDT(.) %>%
+  # WARNING: HERE WE FILTER OUT SPECIFIC TRIALS SET ABOVE:
+  filter(seq_tr %in% select_trs) %>%
+  setDT(.) %>%
+  # calculate the absolute and relative occurrence of each maximum position:
+  .[, by = .(classification, id, change, trial, position), .(
+    count_num = .N / length(select_trs),
+    freq = .N
+  )] %>%
+  # complete missing positions with zeros:
+  complete(nesting(classification, id, change, trial),
+           nesting(position), fill = list(count_num = 0, freq = 0)) %>%
+  # create a new variable containing the type by copying the max position:
+  mutate(type = position) %>%
+  transform(type = ifelse(type %in% c(1,2), type, "none")) %>% setDT(.) %>%
+  # sort the data table
+  setorder(., classification, id, change, trial, position, type) %>%
+  # check if the sum of frequencies matches the number of trs:
+  verify(.[, by = .(classification, id, change, trial), .(
+    sum_freq = sum(freq)
+  )]$sum_freq == length(select_trs)) %>%
+  # average relative proportion of each position across trials per change:
+  setDT(.) %>% .[, by = .(classification, id, change, type), .(
+    mean_count = mean(count_num) * 100,
+    sum_freq = sum(freq),
+    num_trials = .N
+  )] %>%
+  #check if the data consisted of 5 trials per TR:
+  verify(num_trials %in% c(5, 15)) %>%
+  # change variable types for mixed effects models:
+  transform(change = as.factor(change)) %>%
+  transform(type = as.factor(type)) %>%
+  #mutate(mean_count_z = scale(mean_count, center = TRUE, scale = FALSE)) %>% setDT(.) %>%
+  # create a new variable:
+  .[type == "1", ":=" (is_first = 1, is_second = 0)] %>%
+  .[type == "2", ":=" (is_first = 0, is_second = 1)] %>%
+  .[type == "none", ":=" (is_first = 0, is_second = 0)] %>%
+  transform(is_first = as.numeric(is_first)) %>%
+  transform(is_second = as.numeric(is_second))
+```
+
+```{r}
+dt_pred_rep_count_mean = dt_pred_rep_count %>%
+  # average the number of counts across participants:
+  setDT(.) %>%
+  .[, by = .(classification, change, type), .(
+    mean_count = mean(mean_count),
+    sd_count = sd(mean_count),
+    num_subs = .N,
+    sem_upper = mean(mean_count) + (sd(mean_count)/sqrt(.N)),
+    sem_lower = mean(mean_count) - (sd(mean_count)/sqrt(.N))
+  )] %>%
+  # check if the number of data points (here, participants) is correct:
+  verify(num_subs == 36) %>%
+  verify(.[, by = .(classification, change), .(
+    mean_count = sum(mean_count)
+  )]$mean_count == 100) %>%
+  # order the data table:
+  setorder(., classification, change, type)
+```
+
+```{r}
+lme_rep_count = lmer(mean_count ~ type * change + (1 + type + change|id),
+      data = subset(dt_pred_rep_count, classification == "ovr" & change %in% c(2,9)),
+      na.action = na.omit, control = lcctrl)
+summary(lme_rep_count)
+anova(lme_rep_count)
+emmeans_results = emmeans(lme_rep_count, list(pairwise ~ type | change))
+emmeans_summary = summary(emmeans_results[[2]])
+```
+
+
+
+
+
+```{r, echo = FALSE}
+dt_significance = data.table(
+  change = rep(emmeans_summary$change, each = 2),
+  contrast = rep(emmeans_summary$contrast, each = 2),
+  pvalue = rep(round_pvalues(emmeans_summary$p.value), each = 2),
+  group = rep(c(1.5, 2.0, 2.5), each = 2),
+  type = c("1", "2", "1", "none", "2", "none"),
+  probability = rep(c(75, 95, 85), each = 2)
+)
+```
+
+```{r, echo = FALSE}
+fig_e = ggplot(data = subset(dt_pred_rep_count, classification == "ovr" & change %in% c(2,9)), aes(
+  x = as.factor(type), y = as.numeric(mean_count),
+  fill = as.factor(type))) +
+  geom_flat_violin(
+    scale = "width", trim = FALSE, aes(color = NA),
+    position = position_nudge(x = 0.3, y = 0), alpha = 0.4) +
+  geom_bar(
+    stat = "summary", fun = "mean", color = "black", width = 0.05,
+    position = position_nudge(x = 0.2, y = 0)) + 
+  geom_errorbar(
+    stat = "summary", fun.data = "mean_se", width = 0.0,
+    position = position_nudge(x = 0.2, y = 0), color = "black") +
+  geom_boxplot(
+    outlier.colour = "black", outlier.shape = NA, outlier.size = 50,
+    notch = FALSE, outlier.alpha = 1, width = 0.05, color = "black",
+    position = position_nudge(x = 0.4, y = 0), alpha = 0.5) +
+  geom_point(
+    position = position_jitter(width = .05, height = 0, seed = 4),
+    pch = 21, alpha = 1, color = "black") +
+  facet_wrap(~ as.factor(change), labeller = as_labeller(facet_labels_new)) +
+  xlab("Serial event") + ylab("Proportion per trial (in %)") +
+  scale_fill_manual(name = "Serial event", values = colors) +
+  scale_color_manual(name = "Serial event", values = colors) +
+  scale_y_continuous(labels = label_fill(seq(0, 100, 10), mod = 2), breaks = seq(0, 100, 10)) +
+  coord_capped_cart(left = "both", bottom = "both", ylim = c(0, 100), expand = TRUE) +
+  theme(legend.position = "bottom", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(0,0,0,0),
+        legend.box.margin = margin(t = -10, r = 0, b = 10, l = 0)) +
+  theme(panel.background = element_blank()) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
+  theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+  geom_line(data = dt_significance, aes(group = group, x = type, y = probability),
+            linetype = "solid", position = position_nudge(x = 0.2, y = 0)) +
+  geom_text(data = dt_significance %>% distinct(group, change, probability, .keep_all = TRUE),
+            aes(x = group, y = probability + 1, label = pvalue), color = "black",
+            position = position_nudge(x = 0.2, y = 4), parse = FALSE) +
+  theme(axis.line.y = element_line(colour = "black"),
+        axis.line.x = element_line(colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_line(colour = "white"))
+fig_e
+```
+```{r}
+ggsave(filename = "highspeed_plot_decoding_repetition_maxprob.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5, height = 3)
+```
+
+**Test for significance**
+
+**Test 1:** Using a paired t-test, we test how well we are able to decode a single
+briefly presented item in a 32 ms sequence compared to items that were not
+presented, when the item (first event) is followed by a statistical representation
+that could mask the item (change = 2 condition).
+
+**Test 2:** Using a paired t-test, we then test how well we are able to decode a single
+briefly presented item in a 32 ms sequence compared to items that were not
+presented, when the item (last event) is preceded by a statistical signal
+(change = 9 condition).
+
+```{r}
+# label all data points with position = 1 or 2 as part of the sequnece:
+dt_pred_rep_count$type_group[dt_pred_rep_count$type %in% c(1,2)] = "in_seq"
+# label all data points with positions > 2 as *not* part of the sequence:
+dt_pred_rep_count$type_group[dt_pred_rep_count$type == "other"] = "out_seq"
+# create a data table for the change 2 condition that does not contain the 2nd stimulus:
+df1 = subset(dt_pred_rep_count, change == 2 & type != 2)
+# create a data table for the change = 9 condition that does not contain the 1st stimulus:
+df2 = subset(dt_pred_rep_count, change == 9 & type != 1)
+# combine both data frames:
+df3 = setDT(rbind(df1, df2))
+df3_test = df3 %>%
+  # calculate means separately for within and out of sequence stimuli:
+  .[, by = .(classification, id, change, type_group), .(
+    mean_count = mean(mean_count)
+  )] %>%
+  # transform data table to wide format to calculate t-tests:
+  spread(key = type_group, value = mean_count) %>%
+  # average across particiants and calculate t-tests:
+  .[, by = .(classification, change), {
+    results = t.test(x = in_seq, y = out_seq, paired = TRUE);
+    list(mean_out = mean(out_seq), sd_out = sd(out_seq),
+         mean_in = mean(in_seq), sd_in = sd(in_seq),
+         pvalue = results$p.value, tvalue = results$statistic, n = .N)
+  }] %>%
+  .[, by = .(classification), ":=" (
+    num_comp = .N,
+    pvalue_adjust = p.adjust(pvalue, method = "bonferroni", 2)
+  )] %>% verify(all(num_comp == 2))
+```
+
+# Sequence transitions
+
+**Question: Are there more within sequence transitions than transitions to
+out-of-sequence elements?**
+
+```{r}
+transition_type <- function(head, tail){
+  if (head == 1 & tail == 2){
+    transition_type = "forward"
+  } else if(head == 2 & tail == 1) {
+    transition_type = "backward"
+  } else if(head == 1 & tail == 1) {
+    transition_type = "repetition 1"
+  } else if(head == 2 & tail == 2) {
+    transition_type = "repetition 2"
+  #} else if(head == tail) {
+  #  transition_type = "repetition"
+  } else if(head %in% c(1,2) & tail > 2) {
+    transition_type = "outwards"
+  } else if(head > 2 & tail %in% c(1,2)) {
+    transition_type = "inwards"
+  } else if(head > 2 & tail > 2 & head != tail) {
+    transition_type = "outside"
+  } else if(head > 2 & tail > 2 & head == tail) {
+    transition_type = "repetition out"
+  } else {
+      transition_type = "ERROR!"
+  }
+  return(transition_type)
+}
+```
+
+```{r}
+trs = seq(2, 7)
+# define the number of transitions, which is the number of TRs - 1
+num_transitions = length(trs) - 1
+# calculate the transitions between decoded repetition trial elements
+dt_pred_rep_step = dt_pred_rep %>%
+  # filter for specific trs in a selected time window:
+  filter(seq_tr %in% trs) %>% setDT(.) %>%
+  # for each classification, id, trial, get position with highest probability:
+  .[, by = .(classification, id, trial, change, seq_tr), .(
+    num_trials = .N,
+    position_max = position[which.max(probability)]
+  )] %>%
+  # check if the data consisted of 5 trials per TR:
+  verify(num_trials == 5) %>%
+  # get the head and tail of the maximum positions (sequence shifted by 1):
+  # head = tr 1 to n-1 and tail = tr 2 to n:
+  .[, by = .(classification, id, trial, change), .(
+    n = .N,
+    head = head(position_max, -1),
+    tail = tail(position_max, -1)
+  )] %>%
+  # get the number of each unique combination of consecutive positions indices:
+  .[, .N, .(classification, id, trial, change, head, tail)] %>% 
+  # complete all missing pairings with 0s for each trial:
+  complete(nesting(classification, id, trial, change), nesting(head, tail),
+           fill = list(N = 0)) %>% setDT(.) %>%
+  # check if the number of true transitions matching the expected number:
+  verify(.[, by = .(classification, id, trial, change), .(
+    sum_of_n = sum(N)
+  )]$sum_of_n == num_transitions) %>%
+  # set the order: sort by classification, participant, trial and positions:
+  setorder(classification, id, trial, change, head, tail) %>%
+  # define the transition type for every transition:
+  mutate(step_type = mapply(transition_type, head, tail)) %>%
+  # calculate the relative proportion per trial across TRs for each transition
+  mutate(proportion = N/num_transitions) %>% setDT(.) %>%
+  # check if any step type is not properly assigned:
+  verify(all(!is.na(step_type))) %>% setDT(.)
+
+dt_pred_rep_step_version1 = dt_pred_rep_step %>%
+  # average the proportion of transitions across trials:
+  .[, by = .(classification, id, change, step_type), .(
+    mean_proportion = mean(proportion) * 100
+  )]
+  
+dt_pred_rep_step_version2 = dt_pred_rep_step %>%
+  # sum up the number of transitions for each transition type:
+  .[, by = .(classification, id, trial, change, step_type), .(
+    num = sum(N)
+  )] %>%
+  # check if the number of true transitions matching the expected number per trial:
+  #verify(.[, by = .(classification, id, trial, change), .(
+  #  num_transitions = sum(num)
+  #)]$num_transitions == num_transitions) %>%
+  # calculate the proportion per trial across TRs for each transition
+  mutate(proportion = num/num_transitions) %>% setDT(.) %>%
+  # average the proportion of transitions across trials:
+  .[, by = .(classification, id, change, step_type), .(
+    mean_num = mean(num),
+    mean_proportion = mean(proportion) * 100
+  )]
+  
+dt_pred_rep_step_mean = dt_pred_rep_step_version1 %>%
+  # average across participants and compute the standard error:
+  .[, by = .(classification, change, step_type), .(
+    mean_proportion = mean(mean_proportion),
+    num_subs = .N,
+    sem_upper = mean(mean_proportion) + (sd(mean_proportion)/sqrt(.N)),
+    sem_lower = mean(mean_proportion) - (sd(mean_proportion)/sqrt(.N))
+  )] %>%
+  verify(all(num_subs == 36)) %>%
+  setorder(classification, change, step_type) %>%
+  filter(classification == "ovr")
+```
+
+```{r, dev = "cairo_pdf"}
+plot_rep_trans_mat = function(dt){
+  ggplot(data = dt, mapping = aes(
+    x = as.factor(head), y = fct_rev(as_factor(tail)),
+    size = mean_proportion, fill = step_type)) +
+    geom_point(aes(size = mean_proportion, fill = step_type), pch = 21, color = "black") +
+    coord_capped_cart(left = "both", bottom = "both", expand = TRUE) +
+    xlab("Decoded event at t") +
+    ylab("Decoded event at t + 1") +
+    facet_wrap(~ as.factor(change), labeller = as_labeller(facet_labels_new)) +
+    scale_size(range = c(1,15), name = "Proportion per trial (in %)",
+               guide = guide_legend(
+                 title.position = "top", direction = "horizontal",
+                 nrow = 1,
+                 order = 2)) +
+    scale_fill_manual(name = "Transition type",
+                      values = c(colors, "white", "white", "white"),
+                      guide = guide_legend(ncol = 2)) +
+    theme(strip.text.x = element_text(margin = margin(b = 3, t = 2))) +
+    scale_y_discrete(limits = rev(levels(~tail))) +
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank()) +
+    # remove background of legend keys:
+    theme(legend.key = element_blank()) +
+    theme(legend.background = element_blank())
+    # add annotation
+    #annotate("segment", x = 0, xend = 6, y = 6, yend = 0,
+    #         colour = "white", size = 10, alpha = 0.8) +
+    #annotate(geom = "text", x = 3, y = 3, angle = 360 - 45, hjust = 0.5,
+    #         label = "Repetitions of the same decoded event",
+    #         color = "gray")
+}
+```
+
+```{r}
+dt_pred_rep_step_trans = dt_pred_rep_step %>%
+  .[, by = .(classification, change, head, tail, step_type), .(
+    num_data = .N,
+    mean_proportion = mean(proportion) * 100
+  )] %>%
+  # check if averaged is number of participants times number of trials
+  verify(all(num_data == 36 * 5)) %>%
+  # create new variable containing the the averaged number as a label:
+  mutate(mean_num_label = as.character(sub('^(-)?0[.]', '\\1.', round(mean_proportion, 2)))) %>%
+  # remove all repetition transitions:
+  mutate(step_type = ifelse(stringr::str_detect(step_type, "repetition"), "repetition", step_type)) %>%
+  setDT(.)
+```
+
+```{r}
+fig_trans_mat = plot_rep_trans_mat(
+  dt = subset(dt_pred_rep_step_trans, classification == "ovr" & change %in% c(2,9)))
+fig_trans_mat
+```
+
+
+```{r, echo = FALSE}
+ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 8, height = 3)
+```
+
+
+
+```{r, echo = FALSE, dev = "cairo_pdf"}
+plot_rep_trans <- function(dt){ggplot(
+  data = dt, aes(x = as.factor(step_type), y = as.numeric(mean_proportion),
+                 fill = as.factor(step_type))) +
+    # geom_flat_violin(scale = "width", trim = FALSE, color = NA,
+    #                   position = position_nudge(x = 0.15, y = 0)) +
+    #geom_point(stat = "summary", fun.y = "mean", color = "black",
+    #             position = position_nudge(x = 0.25, y = 0), pch = 23) +
+    # geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0,
+    #                position = position_nudge(x = 0.25, y = 0), color = "black") +
+    # geom_boxplot(outlier.colour = "black", outlier.shape = NA, outlier.size = 50,
+    #               notch = FALSE, outlier.alpha = 1, width = 0.1, color = "black",
+    #               alpha = 1, position = position_nudge(x = -0.2, y = 0)) +
+    geom_bar(aes(fill = as.factor(step_type)),
+             stat = "identity", color = "black", position = position_dodge()) +
+    geom_errorbar(aes(ymin = sem_lower, ymax = sem_upper), width = 0, position = position_dodge(.9)) +
+    #geom_point(position = position_jitter(width = .05, height = 0, seed = 4),
+    #             pch = 21, alpha = 1, color = "black") +
+    facet_wrap(~ as.factor(change), labeller = as_labeller(facet_labels_new)) +
+    xlab("Serial event") +
+    #xlab(expression(paste("Time-point of change to ", 2^nd, " serial event"))) +
+    ylab("Proportion per trial (%)") +
+    coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0,10)) +
+    scale_fill_manual(name = "Transition", values = c(colors, "lightblue", "lightcoral", "darkgray")) +
+    theme(strip.text.x = element_text(margin = margin(b = 3, t = 2))) +
+    #scale_x_discrete(labels = as_labeller(facet_labels_new)) +
+    #theme(legend.position = "right", legend.direction = "vertical", legend.justification = "center") +
+    theme(legend.position = "bottom", legend.direction = "horizontal",
+        legend.justification = "center", legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.box.margin = margin(t = -10, r = 0, b = 10, l = 0)) +
+    guides(fill = guide_legend(nrow = 2, title.position = "top", title.hjust = 0.5)) +
+    theme(panel.background = element_blank()) +
+    #theme(plot.margin = unit(c(t = 1, r = 1, b = 1, l = 1), "pt")) +
+    theme(axis.line.y = element_line(colour = "black"),
+        axis.line.x = element_line(colour = "white"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_line(colour = "white"))
+}
+
+# & change %in% c(2,9)
+fig_trans_prop = plot_rep_trans(dt = subset(
+  dt_pred_rep_step_mean, classification == "ovr" & change %in% c(2,9) &
+  step_type != "repetition 1" & step_type != "repetition 2" & step_type != "repetition out"
+))
+fig_trans_prop
+```
+
+```{r, echo = FALSE}
+ggsave(filename = "highspeed_plot_decoding_repetition_transition_types.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 5, height = 3)
+```
+
+
+compare the average proportion of forward transitions with the average proportion
+of outwards steps in the change = 2 condition. also compare the average
+proportion of forward transitions with the average number of within out-of-sequence transitions:
+
+```{r, results = "hold"}
+dt_pred_rep_trans_test = dt_pred_rep_step_version1 %>%
+  filter(step_type %in% c("forward", "outwards", "outside") & change == 9) %>%
+  spread(key = step_type, value = mean_proportion, drop = TRUE) %>% setDT(.) %>%
+  .[, by = .(classification), {
+    ttest_outwards = t.test(x = forward, y = outwards, paired = TRUE);
+    ttest_outside = t.test(x = forward, y = outside, paired = TRUE);
+    list(mean_forward = round(mean(forward), 2),
+         mean_outwards = round(mean(outwards), 2),
+         mean_outside = round(mean(outside), 2),
+         df = ttest_outwards$parameter,
+         ttest_outwards_pvalue = p.adjust(ttest_outwards$p.value,
+                                          method = "bonferroni", n = 4),
+         ttest_outwards_tvalue = ttest_outwards$statistic,
+         ttest_outside_pvalue = p.adjust(ttest_outside$p.value,
+                                          method = "bonferroni", n = 4),
+         ttest_outside_tvalue = ttest_outside$statistic,
+         num_subs = .N)
+  }] %>%
+  verify(all(num_subs == 36)) %>%
+  filter(classification == "ovr")
+dt_pred_rep_trans_test
+```
+
+```{r, fig.width = 10, fig.height = 10, dev = "cairo_pdf"}
+plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
+          #plot_grid(fig_c, fig_d, labels = c("c", "d")),
+          plot_grid(fig_c, fig_trans_prop, labels = c("c", "d")),
+          plot_grid(fig_trans_mat, labels = c("e")),
+          ncol = 1, label_fontface = "bold")
+ggsave(filename = "highspeed_plot_decoding_repetition.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 10)
+```
+
+
+
