@@ -585,7 +585,7 @@ lme_rep_count = lmer(mean_count ~ type * change + (1 + type + change|id),
       na.action = na.omit, control = lcctrl)
 summary(lme_rep_count)
 anova(lme_rep_count)
-emmeans_results = emmeans(lme_rep_count, list(pairwise ~ type | change))
+emmeans_results = emmeans(lme_rep_count, list(pairwise ~ type | change))
 emmeans_summary = summary(emmeans_results[[2]])
 ```
 
