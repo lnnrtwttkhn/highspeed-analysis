@@ -2,6 +2,8 @@
 
 ### Initialization
 
+#### Load data and files
+
 We load the data and relevant functions:
 
 ```{r, warning=FALSE, message=FALSE, echo=TRUE}
@@ -20,7 +22,7 @@ load(file.path(path_root, "data", "tmp", "dt_odd_seq_sim.Rdata"))
 sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
 ```
 
-### Data preparation
+#### Data preparation
 
 We create a function to determine early and late zones of forward and backward periods:
 

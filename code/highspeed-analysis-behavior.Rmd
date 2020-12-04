@@ -1,8 +1,8 @@
-# Behavior
+## Behavior
 
-## Initialization
+### Initialization
 
-### Load data and files
+#### Load data and files
 
 We set the paths and source the basic setup script:
 
@@ -19,7 +19,7 @@ if ( basename(here::here()) == "highspeed" ) {
 source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
-### Signal-detection labeling
+#### Signal-detection labeling
 
 We assign labels from signal detection theory that will be used in one of the analyses below:
 
@@ -38,7 +38,7 @@ dt_events$sdt_type[
   dt_events$key_down == 1 & dt_events$stim_orient == 0] <- "false alarm"
 ```
 
-## Stimulus timings
+### Stimulus timings
 
 We calculate the differences between consecutive stimulus onsets:
 
@@ -126,9 +126,9 @@ dt_odd_iti_mean = dt_events %>%
 rmarkdown::paged_table(dt_odd_iti_mean)
 ```
 
-## Overview: Behavioral performance
+### Overview: Behavioral performance
 
-### Mean accuracy
+#### Mean accuracy
 
 We calculate the mean behavioral accuracy across all trials of all three task conditions (slow, sequence, and repetition trials):
 
@@ -207,7 +207,7 @@ dt_acc_mean = dt_acc %>%
 rmarkdown::paged_table(dt_acc_mean)
 ```
 
-### Above-chance performance
+#### Above-chance performance
 
 We plot only data of above-chance performers:
 
@@ -238,7 +238,7 @@ fig_behav_all = ggplot(data = subset(dt_acc, exclude == "no"), aes(
 fig_behav_all
 ```
 
-### Below chance performance
+#### Below chance performance
 
 We plot data of all participants with below chance performers highlighted in red.
 
@@ -274,9 +274,9 @@ fig_behav_all_outlier = ggplot(data = dt_acc_mean,
 fig_behav_all_outlier
 ```
 
-## Slow trials
+### Slow trials
 
-### Mean accuracy (all trials)
+#### Mean accuracy (all trials)
 
 We calculate the mean accuracy on slow trials (oddball task condition) across all trials in the final sample (only participants who performed above chance):
 
@@ -316,7 +316,7 @@ fig_behav_odd = ggplot(data = dt_acc_odd, aes(
 fig_behav_odd
 ```
 
-### Mean accuracy (per run)
+#### Mean accuracy (per run)
 
 We calculate the mean behavioral accuracy on slow trials (oddball task condition) for each of the eight task runs *for each* participant:
 
@@ -414,7 +414,7 @@ plot_odd_run = ggplot(data = dt_odd_behav_run_mean, mapping = aes(
 plot_odd_run
 ```
 
-### Misses vs. false alarms
+#### Misses vs. false alarms
 
 We calculate the mean frequency of misses (missed response to upside-down images) and false alarms (incorrect response to upright images):
 
@@ -492,9 +492,9 @@ plot_odd_sdt = ggplot(data = dt_odd_behav_sdt_sub, mapping = aes(
 plot_odd_sdt
 ```
 
-## Sequence trials
+### Sequence trials
 
-### Effect of sequence speed
+#### Effect of sequence speed
 
 We calculate the mean behavioral accuracy on sequence trials for each of the five sequence speeds (inter-stimulus intervals):
 
@@ -625,7 +625,7 @@ fig_seq_speed = ggplot(data = dt_seq_behav_speed, mapping = aes(
 fig_seq_speed
 ```
 
-### Effect of target position
+#### Effect of target position
 
 We calculate the mean behavioral accuracy on sequence trials for each of possible serial position of the target stimulus:
 
@@ -680,9 +680,9 @@ fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
 fig_seq_position
 ```
 
-## Repetition trials
+### Repetition trials
 
-### Mean accuracy
+#### Mean accuracy
 
 We calculate mean behavioral accuracy in repetition trials for each participant:
 
@@ -854,7 +854,7 @@ summary(lme_rep_behav_condition)
 anova(lme_rep_behav_condition)
 ```
 
-## Figure Main
+### Figure Main
 
 We plot the figure for the main text:
 
@@ -869,7 +869,7 @@ ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
        scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
 ```
 
-## Figure SI
+### Figure SI
 
 We plot the figure for the supplementary information:
 
@@ -893,7 +893,7 @@ ggsave(filename = "wittkuhn_schuck_figure_s1.pdf",
        dpi = "retina", width = 8, height = 5)
 ```
 
-# Participants
+## Participants
 
 We analyze characteristics of the participants:
 
