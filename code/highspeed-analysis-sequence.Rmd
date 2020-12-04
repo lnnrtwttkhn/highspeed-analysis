@@ -15,11 +15,17 @@ if ( basename(here::here()) == "highspeed" ) {
   path_root = here::here()
 }
 # source all relevant functions from the setup R script:
-source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 load(file.path(path_root, "data", "tmp", "dt_periods.Rdata"))
 load(file.path(path_root, "data", "tmp", "dt_odd_seq_sim_diff.Rdata"))
 load(file.path(path_root, "data", "tmp", "dt_odd_seq_sim.Rdata"))
 sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
+```
+
+The next step is only evaluated during manual execution:
+
+```{r, eval=FALSE}
+# source all relevant functions from the setup R script:
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
 #### Data preparation

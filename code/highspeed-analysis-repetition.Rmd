@@ -14,10 +14,15 @@ if ( basename(here::here()) == "highspeed" ) {
 } else {
   path_root = here::here()
 }
-# source all relevant functions from the setup R script:
-source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 # create a list of participants to exclude based on behavioral performance:
 sub_exclude <- c("sub-24", "sub-31", "sub-37", "sub-40")
+```
+
+The next step is only evaluated during manual execution:
+
+```{r, eval=FALSE}
+# source all relevant functions from the setup R script:
+source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
 #### Prepare events and decoding data
