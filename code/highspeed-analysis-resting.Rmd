@@ -1,8 +1,8 @@
-## Resting-state
+# Results: Resting-state
 
-### Preparation
+## Preparation
 
-#### Initialization
+### Initialization
 
 We load the data and relevant functions:
 
@@ -25,7 +25,7 @@ The next step is only evaluated during manual execution:
 source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
-#### Prepare sequence events data
+### Prepare sequence events data
 
 We select all events files for sequence trials when the stimuli were presented:
 
@@ -35,11 +35,11 @@ dt_events_seq = subset(dt_events, condition == "sequence" & trial_type == "stimu
 rmarkdown::paged_table(dt_events_seq)
 ```
 
-#### Prepare resting decoding data
+### Prepare resting decoding data
 
 We prepare the resting state data for analysis:
 
-```{r, results = "hold"}
+```{r, results="hold"}
 # create a subset that only includes the resting state data:
 dt_pred_rest = dt_pred %>%
   # filter for rest only data that was created by the union mask:
@@ -71,7 +71,7 @@ dt_pred_rest = dt_pred %>%
 We did not acquire pre-task resting-state data in Session 1.
 We filter for these participants below:
 
-```{r, results = "hold"}
+```{r, results="hold"}
 # create an array with all participant ids who do not have all four resting state runs:
 ids_no_pre_s1 = unique(
   (dt_pred_rest %>% setDT(.) %>%
@@ -110,7 +110,7 @@ dt_pred_rest_s1 = dt_pred_rest %>%
   setDT(.)
 ```
 
-#### Prepare sequence decoding data
+### Prepare sequence decoding data
 
 We prepare the sequence trial data that will be combined with the resting state data:
 
@@ -142,7 +142,7 @@ dt_pred_seq = dt_pred %>%
     num_trs = .N)]$num_trs == 12)
 ```
 
-#### Combine sequence and resting data
+### Combine sequence and resting data
 
 We combine the sequence and resting state decoding data in one data table:
 
@@ -206,7 +206,7 @@ checkdata = function(dt){
 rmarkdown::paged_table(checkdata(dt_pred_all))
 ```
 
-### Decoding probabilities
+## Decoding probabilities
 
 We draw a random example participant used for plotting:
 
@@ -258,7 +258,7 @@ fig_prob_time_seq = ggplot(data = subset(dt_pred_conc, id == example_id), mappin
 fig_prob_time_seq
 ```
 
-### Calculating sequentiality
+## Calculating sequentiality
 
 We create a function to determine whether a certain sequential combination of the task stimuli has been presented to the participants on sequence trials or not:
 
@@ -301,7 +301,7 @@ verify(data.table(sum_seq), sum_seq == 15)
 
 We calculate the regression slopes for every TR and assumed sequence in resting-state data:
 
-```{r}
+```{r, echo=TRUE, eval=FALSE}
 # create an array with all the stimulus labels:
 stimuli <- c("cat", "chair", "face", "house", "shoe")
 # register the computation start time:
@@ -333,7 +333,7 @@ print(end_time - start_time)
 
 We calculate the regression slopes for sequence data:
 
-```{r}
+```{r, echo=TRUE, eval=FALSE}
 dt_pred_conc_slope_seq = dt_pred_conc %>%
   # filter for sequence data  only:
   filter(!stringr::str_detect(tITI, "rest")) %>%
@@ -356,7 +356,7 @@ dt_pred_conc_slope_seq = dt_pred_conc %>%
 
 We combine the resting state and sequence trial slope data:
 
-```{r}
+```{r, echo=TRUE, eval=FALSE}
 dt_pred_conc_slope = rbind(dt_pred_conc_slope_seq, dt_pred_conc_slope_rest) %>%
   # verify that there are 5 events per TR and their mean position is 5:
   verify(all(num_events == 5)) %>%
@@ -388,9 +388,19 @@ dt_pred_conc_slope = rbind(dt_pred_conc_slope_seq, dt_pred_conc_slope_rest) %>%
   setDT(.)
 ```
 
-### Mean slope coefficients
+We save the regression slope data during manual execution, save it to the repository and reload it for all following analyses: 
 
-#### Fixed event order
+```{r, echo=TRUE, eval=FALSE}
+save(dt_pred_conc_slope, file = file.path(path_root, 'data', "tmp", "dt_pred_conc_slope.Rdata"))
+```
+
+```{r, echo=TRUE}
+load(file.path(path_root, "data", "tmp", "dt_pred_conc_slope.Rdata"))
+```
+
+## Mean slope coefficients
+
+### Fixed event order
 
 We calculate the mean slope coefficients assuming a fixed ordering of sequence events for sequence trials:
 
@@ -469,7 +479,7 @@ dt_pred_conc_slope_stat = dt_pred_conc_slope %>%
   setDT(.)
 ```
 
-```{r, results=hold}
+```{r, results="hold"}
 # compare mean probabilities between resting state and fast sequence data:
 mean_sd_rest_pre = subset(dt_pred_conc_slope_stat, tITI == "Rest Pre S1")$mean_sd_prob
 mean_sd_rest_post = subset(dt_pred_conc_slope_stat, tITI == "Rest Post S1")$mean_sd_prob
@@ -528,7 +538,7 @@ fig_sd_prob = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_sd_pro
 fig_mean_beta; fig_mean_beta_abs; fig_sd_prob;
 ```
 
-#### All possible event orders
+### All possible event orders
 
 We calculate the mean slope for every time point (for every TR) depending on
 if a sequence was actually seen or not (relevant for resting state data).
@@ -616,7 +626,7 @@ dt_pred_conc_slope_stat_seen = dt_pred_conc_slope %>%
 ```
 
 
-```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results="hold"}
 lme_sd_prob <- lmerTest::lmer(
   sd_prob ~ tITI + (tITI | id),
   data = dt_pred_conc_slope, control = lcctrl
@@ -626,7 +636,7 @@ emmeans_results = emmeans(lme_sd_prob, list(pairwise ~ tITI))
 emmeans_results
 ```
 
-```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results="hold"}
 lme_rest_sd = lmerTest::lmer(
   mean_sd_prob ~ tITI + (1 | id),
   data = dt_pred_conc_slope_stat, control = lcctrl)
@@ -636,7 +646,7 @@ emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
 emmeans_results
 ```
 
-```{r, echo=FALSE, include=FALSE, eval=FALSE, results=hold}
+```{r, echo=FALSE, include=FALSE, eval=FALSE, results="hold"}
 lme_rest_slope = lmerTest::lmer(
   mean_abs_slope ~ tITI + (1 | id),
   data = dt_pred_conc_slope_stat, control = lcctrl)
@@ -694,9 +704,9 @@ fig_mean_beta_seen; fig_mean_beta_abs_seen; fig_sd_prob_seen;
 fig_mean_pos_abs_seen; fig_mean_neg_abs_seen; fig_mean_slope_seen
 ```
 
-### Frequency spectrum analyses
+## Frequency spectrum analyses
 
-#### Fixed event order
+### Fixed event order
 
 We create a data table with frequency expectations:
 
@@ -787,7 +797,7 @@ fig_freq_lsp = ggplot(
 fig_freq_lsp
 ```
 
-#### All possible event orders
+### All possible event orders
 
 We calculate the frequency spectrum for all permuted resting state sequences and
 sequence trials:
@@ -863,7 +873,7 @@ frequency_expectation = data.table(xintercept = c(
   tITI = c("32 ms", "2048 ms", "Rest Pre S1"))
 ```
 
-#### Pre vs. post-task resting-state data
+### Pre vs. post-task resting-state data
 
 ```{r, echo=FALSE}
 colors_all = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
@@ -936,8 +946,8 @@ dt_pred_rest_lsp_mean_rel_seen = dt_pred_rest_lsp_seen %>%
 We determine in which frequency range the peak in difference between pre- and post-task rest is:
 
 ```{r}
-increase_slow = round(dt_pred_rest_lsp_mean_rel$freq_bins_smooth[which.max(dt_pred_rest_lsp_mean_rel$mean_spec)], 2)
-increase_fast = round(dt_pred_rest_lsp_mean_rel$freq_bins_smooth[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07][which.max(dt_pred_rest_lsp_mean_rel[dt_pred_rest_lsp_mean_rel$freq_bins_smooth > 0.07]$mean_spec)], 2)
+increase_slow = round(dt_pred_rest_lsp_mean_rel_seen$freq_bins_smooth[which.max(dt_pred_rest_lsp_mean_rel_seen$mean_spec)], 2)
+increase_fast = round(dt_pred_rest_lsp_mean_rel_seen$freq_bins_smooth[dt_pred_rest_lsp_mean_rel_seen$freq_bins_smooth > 0.07][which.max(dt_pred_rest_lsp_mean_rel_seen[dt_pred_rest_lsp_mean_rel_seen$freq_bins_smooth > 0.07]$mean_spec)], 2)
 increase_slow; increase_fast;
 ```
 
@@ -975,7 +985,7 @@ fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel_seen, aes(
 fig_freq_post_rel
 ```
 
-#### Frequency spectra of frequent vs. less frequent sequences
+### Frequency spectra of frequent vs. less frequent sequences
 
 We calculate the mean frequency spectra depending on whether the assumed sequences occured more frequency or less frequently during the task:
 
@@ -1037,7 +1047,7 @@ fig_freq_lsp_seen = ggplot(data = dt_pred_rest_lsp_mean_seen, aes(
 fig_freq_lsp_seen
 ```
 
-#### Relative frequency spectra (fixed order)
+### Relative frequency spectra (fixed order)
 
 We compare the power of the expected frequencies of resting state, fast, and slow
 sequence trial data in data from resting state, fast, and slow sequence trial data.
@@ -1131,7 +1141,7 @@ fig_freq_exp = ggplot(
 fig_freq_exp
 ```
 
-#### Relative frequency spectra (all orders)
+### Relative frequency spectra (all orders)
 
 ```{r}
 dt_pred_rest_lsp_exp_seen = dt_pred_rest_lsp_seen %>%
@@ -1190,7 +1200,7 @@ fig_freq_exp_seen
 
 We examine the effect of resting-state session (pre- vs. post-task rest) and sequence frequency (less frequent vs. more frequent) on the power in the high frequency range (predicted by our model) indicative of fast sequential reactivation:
 
-```{r, results=hold}
+```{r, results="hold"}
 lme_power <- lmerTest::lmer(
   power ~ tITI * seen  + (tITI + seen | id),
   data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
@@ -1202,7 +1212,7 @@ emmeans_results = emmeans(lme_power, list(pairwise ~ tITI | seen))
 emmeans_results
 ```
 
-```{r, echo=TRUE, results=hold}
+```{r, echo=TRUE, results="hold"}
 lme_power <- lmerTest::lmer(
   power ~ tITI + (seen | id),
   data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
@@ -1214,7 +1224,7 @@ emmeans_results = emmeans(lme_power, list(pairwise ~ tITI))
 emmeans_results
 ```
 
-```{r, echo=TRUE, results=hold}
+```{r, echo=TRUE, results="hold"}
 lme_power <- lmerTest::lmer(
   power ~ seen + (tITI | id),
   data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
@@ -1278,7 +1288,7 @@ fig_freq_exp_post = ggplot(data = plot_data, aes(
   #      legend.text = element_text(size = 10))
 fig_freq_exp_post
 ```
-### Figure 6
+## Figure 6
 
 ```{r}
 plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp_post, nrow = 1, ncol = 3,
@@ -1294,7 +1304,7 @@ ggsave(filename = "wittkuhn_schuck_figure_6.pdf",
        dpi = "retina", width = 9, height = 3)
 ```
 
-### Inserting sequence trials into rest
+## Inserting sequence trials into rest
 
 We create a function to sample sequence trials:
 
@@ -1739,7 +1749,7 @@ fig_snr_data_sd = plot_snr_insert(dt = snr_insert_stat_sd, variable = "mean_sd_d
 fig_snr_pmat_slope; fig_snr_data_slope; fig_snr_pmat_sd; fig_snr_data_sd;
 ```
 
-# Frequency analysis
+## Frequency analysis
 
 We calculate the frequency spectra for sequence-free and sequence-inserted
 (fast and slow sequences) rest:
@@ -1933,9 +1943,7 @@ fig_freq_exp_insert = ggplot(data = plot_data, aes(
 fig_freq_exp_insert
 ```
 
-# Plotting
-
-Main
+## Figure 5
 
 ```{r}
 panel_1 = plot_grid(fig_sd_prob, fig_mean_beta, ncol = 2, labels = c("a", "b"))
@@ -1946,7 +1954,7 @@ panel_5 = plot_grid(fig_freq_lsp_insert, fig_freq_exp_insert, labels = c("h", "i
 plot_grid(plot_grid(panel_1, panel_2, ncol = 2), panel_3, panel_4, panel_5, ncol = 1)
 ```
 
-```{r}
+```{r, eval=FALSE}
 ggsave(filename = "highspeed_plot_decoding_rest.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
@@ -1955,177 +1963,15 @@ ggsave(filename = "wittkuhn_schuck_figure_5.pdf",
        dpi = "retina", width = 10, height = 12)
 ```
 
-
-Supplement
+## Supplementary Figure
 
 ```{r}
 plot_grid(fig_prob_time_seq, fig_prob_diff_snr, fig_inserts, fig_inserts_slopes,
           fig_snr_pmat_slope, fig_snr_data_slope, labels = "auto", ncol = 2, nrow = 3)
 ```
 
-```{r}
+```{r, eval=FALSE}
 ggsave(filename = "highspeed_plot_decoding_rest_supplement.pdf",
-       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 10, height = 10)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-We average the data across participants:
-
-```{r}
-dt_pred_rest_freq_mean = dt_pred_rest_freq %>% 
-  .[, by = .(classification, freq_bins, t), .(
-    num_subs = .N,
-    mean_spec = mean(spec),
-    sem_upper = mean(spec) + (sd(spec)/sqrt(.N)),
-    sem_lower = mean(spec) - (sd(spec)/sqrt(.N))
-  )] %>% verify(all(num_subs == 32))
-
-dt_pred_rest_insert_freq_mean = dt_pred_rest_insert_freq %>%
-  .[, by = .(classification, speed, insert, snr, snr_char, freq_bins, t), .(
-    num_subs = .N,
-    mean_spec = mean(spec),
-    sem_upper = mean(spec) + (sd(spec)/sqrt(.N)),
-    sem_lower = mean(spec) - (sd(spec)/sqrt(.N))
-  )] %>% verify(all(num_subs == 32))
-```
-
-We calculate the mean expected frequency based on sine response functions:
-
-```{r}
-fast_frequency = 1 / (5.24 + 2 * (0.1 + 0.032))
-slow_frequency = 1 / (5.24 + 2 * (0.1 + 2.048))
-# create a data table that is used for plotting later:
-frequency_expectation = data.table(speed = c("32 ms", "2048 ms"),
-   xintercept = c(fast_frequency, slow_frequency))
-```
-
-```{r}
-color_adjust = 80
-
-color_all = as.vector(sapply(X = seq(num_inserts), FUN = function(x){
-  colorRampPalette(c(cols_order[x], '#333333'), space = 'Lab')(color_adjust)[1:num_inserts]}))
-color_sort = c()
-for (i in seq(1:num_inserts)) {
-  color_sort = c(color_sort, color_all[seq(i, length(color_all), by = num_inserts)])
-}
-
-# create a data table with the mean frequencies during sequence-free rest:
-dt1 = dt_pred_rest_freq_mean; dt1$speed = "32 ms"
-dt2 = dt_pred_rest_freq_mean; dt2$speed = "2048 ms"
-dt_rest_freq_plot = rbind(dt1, dt2)
-# create a figure of the frequency densities:
-fig_rest_freq_density = ggplot(data = subset(dt_pred_rest_insert_freq_mean), aes(
-  color = interaction(as.factor(snr_char), as.factor(insert)),
-  y = as.numeric(mean_spec), x = as.numeric(freq_bins))) +
-  facet_wrap(~ fct_rev(as.factor(speed))) + 
-  #geom_ribbon(aes(fill = interaction(as.factor(snr_char), as.factor(insert)),
-  #                ymin = sem_lower, ymax = sem_upper), alpha = 0.1, color = NA) +
-  geom_line() +
-  geom_line(data = dt_rest_freq_plot, aes(y = as.numeric(mean_spec), x = as.numeric(freq_bins)),
-            inherit.aes = FALSE, color = "black") +
-  #geom_vline(data = frequency_expectation, aes(xintercept = xintercept), linetype = "dashed") +
-  theme(legend.position = "top", legend.direction = "horizontal",
-        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
-        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
-  xlab("Frequency (Hz)") + ylab("Spectral density") +
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0, 4)) +
-  scale_color_manual(values = color_sort, name = "SNR level", guide = FALSE) +
-  scale_fill_manual(values = color_sort, name = "SNR level", guide = FALSE) +
-  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2)))
-fig_rest_freq_density
-```
-
-We calculate the mean frequencies for each snr and insert level:
-
-```{r, results = "hold"}
-# calculate the mean frequecies for sequence-inserted rest:
-dt_pred_rest_insert_freq_stat = dt_pred_rest_insert_freq %>%
-  .[, by = .(classification, id, speed, snr, snr_char, insert), .(
-    num_freq_bins = .N,
-    mean_freq = sum((spec * freq_bins)/sum(spec))
-  )] %>% verify(all(num_freq_bins == 120))
-  
-dt_pred_rest_insert_freq_stat_mean = dt_pred_rest_insert_freq_stat %>%
-  .[, by = .(classification, speed, insert, snr, snr_char), .(
-    num_subs = .N,
-    mean_freq = mean(mean_freq),
-    sem_upper = mean(mean_freq) + (sd(mean_freq)/sqrt(.N)),
-    sem_lower = mean(mean_freq) - (sd(mean_freq)/sqrt(.N))
-  )] %>% verify(all(num_subs == 32))
-
-# calculate the mean frequencies for sequence-free resting state:
-dt_pred_rest_freq_stat = dt_pred_rest_freq %>% setDT(.) %>%
-  .[, by = .(classification, id), .(
-    num_freq_bins = .N,
-    mean_freq = sum((spec * freq_bins)/sum(spec))
-  )] %>% verify(all(num_freq_bins == 120)) %>%
-  # add variables to match number of columns in sequence-inserted data:
-  mutate(snr = 0, insert = 0, snr_char = "0", speed = "rest") %>% setDT(.)
-
-# calculate  mean frequency during sequence-free rest used for plotting:
-dt1 = dt_pred_rest_freq_stat %>% .[, by = .(classification), .(mean_freq = mean(mean_freq))]; dt1$speed = "32 ms"
-dt2 = dt_pred_rest_freq_stat %>% .[, by = .(classification), .(mean_freq = mean(mean_freq))]; dt2$speed = "2048 ms"
-dt_rest_freq_plot = rbind(dt1, dt2) 
-
-# combine the sequence-inserted and sequence-free rest in one data table for linear models:
-dt_pred_rest_freq_all_stat = rbind(dt_pred_rest_insert_freq_stat, dt_pred_rest_freq_stat) %>%
-  # standardize the explanatory variables:
-  mutate(snr_z = scale(snr), insert_z = scale(insert)) %>%
-  transform(speed = as.factor(speed))
-
-# linear mixed effects models settings:
-lme_rest_fast_rest = lmer(mean_freq ~ speed + (1 + speed | id),
-                     data = subset(dt_pred_rest_freq_all_stat, speed %in% c("32 ms", "rest")), control = lcctrl)
-lme_rest_slow_rest = lmer(mean_freq ~ speed + (1 + speed | id),
-                     data = subset(dt_pred_rest_freq_all_stat, speed %in% c("2048 ms", "rest")), control = lcctrl)
-lme_rest_slow_fast = lmer(mean_freq ~ speed * snr_z * insert_z + (1 + speed + snr_z + insert_z | id),
-                     data = subset(dt_pred_rest_freq_all_stat, speed %in% c("2048 ms", "32 ms")), control = lcctrl)
-anova(lme_rest_fast_rest)
-anova(lme_rest_slow_rest)
-anova(lme_rest_slow_fast)
-```
-
-```{r}
-fig_rest_freq_mean = ggplot(data = dt_pred_rest_insert_freq_stat_mean, mapping = aes(
-  x = as.factor(insert), y = as.numeric(mean_freq), group = as.factor(snr_char),
-  color = as.factor(snr_char), fill = as.factor(snr_char))) +
-  facet_wrap(~ fct_rev(as.factor(speed))) +
-  geom_hline(data = dt_rest_freq_plot, aes(yintercept = as.numeric(mean_freq)),
-             color = "black", linetype = "dashed") +
-  geom_ribbon(aes(ymin = sem_lower, ymax = sem_upper), alpha = 0.1, color = NA) +
-  geom_line() + geom_point(pch = 15) +
-  theme(legend.position = "top", legend.direction = "horizontal",
-        legend.justification = "center", legend.margin = margin(0, 0, 0, 0),
-        legend.box.margin = margin(t = 0, r = 0, b = -5, l = 0)) +
-  xlab("Number of inserted sequence trials") + ylab("Mean frequency (Hz)") +
-  coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(0.15, 0.30)) +
-  guides(color = guide_legend(nrow = 1)) +
-  scale_color_manual(values = cols_order, name = "SNR level") +
-  scale_fill_manual(values = cols_order, name = "SNR level") +
-  theme(strip.text = element_text(margin = margin(b = 2, t = 2, r = 2, l = 2)))
-fig_rest_freq_mean
-```
-
-```{r}
-panel_upper = plot_grid(fig_prob_slope, fig_mean_beta, fig_inserts,
-                        labels = c("a", "b", "c"), ncol = 3, rel_widths = c(1.5, 1, 2))
-panel_middle = plot_grid(fig_snr_pmat, fig_snr_slope, labels = c("d", "e"), ncol = 2)
-panel_lower = plot_grid(fig_rest_freq_density, fig_rest_freq_mean, labels = c("f", "g"), ncol = 2)
-plot_grid(panel_upper, panel_middle, panel_lower, nrow = 3, ncol = 1)
-ggsave(filename = "highspeed_plot_decoding_resting_snr_inserts.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
 ```
