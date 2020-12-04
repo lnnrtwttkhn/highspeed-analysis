@@ -301,7 +301,7 @@ lme_rep_prob_rep = lmer(probability ~ position_label * change + (1 + position_la
                         data = lme_data, na.action = na.omit, control = lcctrl)
 summary(lme_rep_prob_rep)
 anova(lme_rep_prob_rep)
-emmeans_results = emmeans(lme_rep_prob_rep, list(pairwise ~ position_label | change))
+emmeans_results = emmeans(lme_rep_prob_rep, list(pairwise ~ position_label | change))
 print(emmeans_results)
 emmeans_summary = summary(emmeans_results[[2]])
 ```
