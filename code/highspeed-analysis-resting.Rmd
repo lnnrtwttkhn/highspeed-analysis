@@ -391,7 +391,7 @@ dt_pred_conc_slope = rbind(dt_pred_conc_slope_seq, dt_pred_conc_slope_rest) %>%
 We save the regression slope data during manual execution, save it to the repository and reload it for all following analyses: 
 
 ```{r, echo=TRUE, eval=FALSE}
-save(dt_pred_conc_slope, file = file.path(path_root, 'data', "tmp", "dt_pred_conc_slope.Rdata"))
+save(dt_pred_conc_slope, file = file.path(path_root, "data", "tmp", "dt_pred_conc_slope.Rdata"))
 ```
 
 ```{r, echo=TRUE}

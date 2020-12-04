@@ -6,4 +6,5 @@ code/libs
 code/*.html
 figures
 code/*_files
-data/tmp
+data/tmp/dt_odd_*
+data/tmp/dt_periods.Rdata
