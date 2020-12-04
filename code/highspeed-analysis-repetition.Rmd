@@ -876,7 +876,7 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
 
 #### Figure 4d
 
-```{r, echo = FALSE, dev = "cairo_pdf"}
+```{r, echo=TRUE}
 plot_rep_trans <- function(dt){
   ggplot(
     data = dt, aes(x = as.factor(step_type), y = as.numeric(mean_proportion),
@@ -958,7 +958,7 @@ dt_pred_rep_trans_test = dt_pred_rep_step_version1 %>%
 dt_pred_rep_trans_test
 ```
 
-## Figure 4
+### Figure 4
 
 ```{r, fig.width = 10, fig.height = 10}
 plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
