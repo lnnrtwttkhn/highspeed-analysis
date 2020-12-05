@@ -1208,7 +1208,7 @@ lme_power <- lmerTest::lmer(
   control = lcctrl)
 summary(lme_power)
 anova(lme_power)
-emmeans_results = emmeans(lme_power, list(pairwise ~ tITI | seen))
+emmeans_results = emmeans(lme_power, list(pairwise ~ tITI | seen))
 emmeans_results
 ```
 
@@ -1228,8 +1228,7 @@ emmeans_results
 lme_power <- lmerTest::lmer(
   power ~ seen + (tITI | id),
   data = subset(dt_pred_rest_lsp_exp_seen, index == "power_index_fast" &
-                  stringr::str_detect(tITI, "Rest")),
-  control = lcctrl)
+                  stringr::str_detect(tITI, "Rest")), control = lcctrl)
 summary(lme_power)
 anova(lme_power)
 emmeans_results = emmeans(lme_power, list(pairwise ~ seen))
