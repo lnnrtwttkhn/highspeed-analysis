@@ -282,7 +282,7 @@ fig_behav_all_outlier
 
 #### Source Data File Fig. S1a
 
-```{r, echo =TRUE}
+```{r, echo=TRUE}
 dt_acc %>%
   select(-num_trials) %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1a.csv"),
