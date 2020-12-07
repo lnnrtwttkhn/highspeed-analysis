@@ -1906,6 +1906,8 @@ ggsave(filename = "wittkuhn_schuck_figure_3.pdf",
        dpi = "retina", width = 10, height = 12)
 ```
 
+#### Figure S7
+
 ```{r, include=FALSE, echo=TRUE, eval=FALSE, warning=FALSE, message=FALSE}
 title_nomax = ggdraw() + draw_label("Sequence item with highest probability removed", fontface = "plain")
 title_nofirst = ggdraw() + draw_label("First sequence item removed", fontface = "plain")
