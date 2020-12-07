@@ -109,7 +109,7 @@ decoding_accuracy <- function(accuracy, alt_label){
 }
 ```
 
-```{r, results="hold"}
+```{r, results="hold", warning=FALSE, message=FALSE, echo=TRUE}
 #dt_odd_peak <- calc_class_stim_acc(data = dt_pred, mask_label = "cv")
 #dt_odd_peak_hpc <- calc_class_stim_acc(data = dt_pred, mask_label = "cv_hpc")
 dt_odd_peak <- calc_max_prob_acc(data = dt_pred, mask_label = "cv")
@@ -121,6 +121,8 @@ decoding_accuracy(
   accuracy = subset(dt_odd_peak_hpc, classification == "ovr")$mean_accuracy,
   alt_label = "two.sided")
 ```
+
+#### Figure 2a / S2a
 
 We plot the mean decoding accuracy in occipito-temporal and hippocampal data:
 
@@ -135,7 +137,8 @@ plot_odd_peak <- function(data) {
     geom_errorbar(stat = "summary", fun.data = "mean_se", width = 0.0, color = "black") +
     ylab("Accuracy (%)") + xlab("Condition") +
     geom_hline(aes(yintercept = 20), linetype = "dashed", color = "black") +
-    scale_y_continuous(labels = label_fill(seq(0, 100, 20), mod = 1), breaks = seq(0, 100, 20)) +
+    scale_y_continuous(labels = label_fill(seq(0, 100, 20), mod = 1),
+                       breaks = seq(0, 100, 20)) +
     coord_capped_cart(left = "both", expand = TRUE, ylim = c(0, 100)) +
     theme(axis.ticks.x = element_blank(), axis.line.x = element_blank()) +
     theme(axis.title.x = element_blank(), axis.text.x = element_blank()) +
@@ -160,7 +163,25 @@ ggsave(filename = "highspeed_plot_decoding_average_decoding.pdf",
        dpi = "retina", height = 5, width = 2)
 ```
 
-### Fold-wise decoding accuracy:
+#### Source Data File Fig. 2a
+
+```{r, echo=TRUE}
+subset(dt_odd_peak, classification == "ovr") %>%
+  select(-num_trials, -classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_2a.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S2a
+
+```{r, echo=TRUE}
+subset(dt_odd_peak_hpc, classification == "ovr") %>%
+  select(-num_trials, -classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s2a.csv"),
+            row.names = FALSE)
+```
+
+### Fold-wise decoding accuracy
 
 We calculate the mean decoding accuracy for each of the eight folds of the cross-validation procedure:
 
@@ -247,9 +268,9 @@ emmeans_results = emmeans(lme_odd_peak_run, list(pairwise ~ run_study))
 emmeans_results
 ```
 
-## Multivariate decoding time courses
+## Single-trial decoding time courses
 
-We calculate the multivariate decoding time courses:
+We calculate the multivariate decoding time courses on single slow trials:
 
 ```{r, echo=TRUE}
 dt_odd_long_sub = dt_pred %>%
@@ -280,7 +301,11 @@ dt_odd_long_mean = dt_odd_long_sub %>%
   verify(all(num_subs == 36))
 ```
 
-```{r, echo=FALSE, class.source=NULL}
+#### Figure 2b
+
+We plot the single-trial multi-variate decoding time courses on slow trials:
+
+```{r}
 plot.odd.long = ggplot(data = subset(dt_odd_long_mean, classification == "ovr"), aes(
   x = as.factor(seq_tr), y = as.numeric(mean_prob))) +
   facet_wrap(~ as.factor(stim)) +
@@ -329,6 +354,15 @@ plot.odd.long
 ggsave(filename = "highspeed_plot_decoding_single_trial_activation.pdf",
        plot = plot.odd.long, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 3.5, height = 3)
+```
+
+#### Source Data File Fig. 2b
+
+```{r, echo=TRUE}
+subset(dt_odd_long_sub, classification == "ovr") %>%
+  select(-num, -classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_2b.csv"),
+            row.names = FALSE)
 ```
 
 We compare the mean classification probability of the current stimulus
@@ -392,7 +426,7 @@ dt_odd_long_mean_stat = dt_pred %>%
   # only look at the fourth TR where probabilities are expected to peak
   filter(seq_tr == 4 & classification == "ovr")
 # print the data table:
-dt_odd_long_mean_stat
+rmarkdown::paged_table(dt_odd_long_mean_stat)
 ```
 
 ```{r, echo=FALSE, class.source = NULL}
@@ -462,14 +496,17 @@ dt_odd_long_mean_class = dt_pred %>%
 
 We fit the truncated sine wave response function to data from every participant:
 
-```{r, results="hold"}
+```{r}
 # set optimization parameters:
 opts = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1.0e-8, "maxeval" = 1.0e+5)
 default_params = c(0.2, 0.6, 0, 0.1)
 lower_bounds = c(0.01, 0.1, 0, 0)
 upper_bounds = c(0.5, 1, 5, 0.3)
 time = 0:6
+```
 
+
+```{r, results="hold"}
 dt_odd_long_fit = dt_odd_long_mean_class %>%
   # fit the truncated sine wave to probabilities of every decoding timecourse:
   .[, by = .(id, classification, stim), {
@@ -513,6 +550,8 @@ dt_odd_long_fit_single = dt_odd_long_fit %>%
     t = seq(0, 6, 0.1))]
 ```
 
+#### Figure S4a
+
 We plot the single sine wave fits for three example participants (supplement):
 
 ```{r, echo=FALSE}
@@ -552,6 +591,15 @@ ggsave(filename = "highsspeed_plot_decoding_oddball_single_sine_fits.pdf",
        dpi = "retina", width = 6, height = 4)
 ```
 
+#### Source Data File Fig. S4a
+
+```{r, echo=TRUE}
+dt_odd_long_mean_class %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s4a.csv"),
+            row.names = FALSE)
+```
+
 We calculate the mean shape of the sine wave response function across participants:
 
 ```{r, echo=TRUE}
@@ -570,6 +618,8 @@ dt_odd_long_fit_mean = dt_odd_long_fit %>%
   .[, by = .(classification, stim), ":=" (
     t = seq(0, 6, 0.1))]
 ```
+
+#### Figure S4b
 
 ```{r, echo=TRUE}
 fig_s2 = ggplot(data = dt_odd_long_mean_class) +
@@ -601,6 +651,17 @@ ggsave(filename = "highsspeed_plot_decoding_oddball_mean_sine_fits.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
 ```
+
+#### Source Data File Fig. S4b
+
+```{r, echo=TRUE}
+dt_odd_long_mean_class %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s4b.csv"),
+            row.names = FALSE)
+```
+
+#### Figure S4
 
 ```{r}
 plot_grid(fig_s1, fig_s2, nrow = 2, ncol = 1, hjust = c(0, 0),
@@ -677,8 +738,11 @@ dt_odd_long_mean = dt_pred %>%
     num_subs = .N,
     sem_upper = mean(mean_probability) + (sd(mean_probability)/sqrt(.N)),
     sem_lower = mean(mean_probability) - (sd(mean_probability)/sqrt(.N))
-  )] %>% verify(all(num_subs == 36))
+  )] %>%
+  verify(all(num_subs == 36))
 ```
+
+#### Figure 2c
 
 ```{r, echo=FALSE}
 fig_a = ggplot(data = dt_odd_long_mean, aes(
@@ -743,10 +807,19 @@ ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_fig1.pdf",
        dpi = "retina", width = 3, height = 3.1)
 ```
 
-### Illustration of response model and difference dynamics 
+#### Source Data File Fig. 2c
 
 ```{r, echo=TRUE}
-# get the average horizonzal shift of the first sine wave:
+dt_odd_long_mean %>%
+  select(-classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_2c.csv"),
+            row.names = FALSE)
+```
+
+### Response model and difference dynamics 
+
+```{r, echo=TRUE}
+# get the average horizontal shift of the first sine wave:
 t_first = mean(dt_odd_long_fit$shift)
 # calculate the shift of the second sine wave (shift + half a wavelength)
 t_second = mean(dt_odd_long_fit$shift) + add_shift + 1/mean(dt_odd_long_fit$freq)
@@ -760,14 +833,19 @@ t_max_diff = dt_odd_long_fit_shift$t[dt_odd_long_fit_shift$probability == max_pr
 a = dt_odd_long_fit_shift$probability[dt_odd_long_fit_shift$t == t_max_diff & dt_odd_long_fit_shift$event == "first"]
 ```
 
+#### Figure 2d
+
 ```{r, echo=TRUE}
 # select colors used for plotting:
 colors = c("darkgray", "darkgray", "black", "dodgerblue", "red", "black")
 # plot sine wave difference illustration:
-fig_b = ggplot(data = dt_odd_long_fit_shift, aes(x = time, y = probability * 100, group = event, color = event)) +
+fig_b = ggplot(data = dt_odd_long_fit_shift, aes(
+  x = time, y = probability * 100, group = event, color = event)) +
   # create rectangles to indicate the forward and backward phase:
-  annotate("rect", xmin = t_first, xmax = t_crossover, ymin = -80, ymax = 95, alpha = 0.05, fill = "dodgerblue") +
-  annotate("rect", xmin = t_crossover, xmax = t_second, ymin = -80, ymax = 95, alpha = 0.05, fill = "red") +
+  annotate("rect", xmin = t_first, xmax = t_crossover, ymin = -80, ymax = 95,
+           alpha = 0.05, fill = "dodgerblue") +
+  annotate("rect", xmin = t_crossover, xmax = t_second, ymin = -80, ymax = 95,
+           alpha = 0.05, fill = "red") +
   # plot the onset of the first event:
   geom_vline(xintercept = t_first, color = "gray", linetype = "dashed") +
   # plot the offset of the second event (d + lambda + s in manuscript text):
@@ -784,23 +862,30 @@ fig_b = ggplot(data = dt_odd_long_fit_shift, aes(x = time, y = probability * 100
   xlab("Time (in TRs)") + ylab("Probability (a.u.)") +
   scale_colour_manual(name = "Serial event", values = colors) +
   scale_linetype_manual(values = c(rep("solid", 3), "dashed", "solid")) +
-  scale_x_continuous(labels = c(label_fill(seq(1,7,1), mod = 1), rep("", 2)), breaks = seq(0,8,1)) +
+  scale_x_continuous(labels = c(label_fill(seq(1,7,1), mod = 1), rep("", 2)),
+                     breaks = seq(0,8,1)) +
   theme(axis.text.y = element_blank(), axis.ticks.y = element_line(colour = "white"),
         axis.line.y = element_line(colour = "white")) +
   theme(legend.position = "none") +
-  annotate("label", x = 0.5, y = 45, label = "~1^'st'~event", color = "dodgerblue", parse = TRUE, size = 3) +
-  annotate("label", x = 0.5, y = 30, label = "~2^'nd'~event", color = "red", parse = TRUE, size = 3) +
-  annotate("label", x = 0.5, y = -7, label = "Difference", color = "black", size = 3) +
-  annotate("label", x = 0.5, y = -35, label = "Difference\n(no flattening)", color = "darkgray", size = 3) +
+  annotate("label", x = 0.5, y = 45, label = "~1^'st'~event",
+           color = "dodgerblue", parse = TRUE, size = 3) +
+  annotate("label", x = 0.5, y = 30, label = "~2^'nd'~event",
+           color = "red", parse = TRUE, size = 3) +
+  annotate("label", x = 0.5, y = -7, label = "Difference",
+           color = "black", size = 3) +
+  annotate("label", x = 0.5, y = -35, label = "Difference\n(no flattening)",
+           color = "darkgray", size = 3) +
   # add annotation for forward period:
   geom_segment(aes(x = t_first, xend = t_crossover, yend = 85, y = 85,
                    colour = "segment"), color = "dodgerblue") +
-  annotate("label", x = t_first + (t_crossover - t_first)/2, y = 85, label = "Forward period",
+  annotate("label", x = t_first + (t_crossover - t_first)/2, y = 85,
+           label = "Forward period",
            color = "dodgerblue", fill = "white", hjust = 0.5) +
   # add annotations for backward period:
   geom_segment(aes(x = t_crossover, xend = t_second, y = 85, yend = 85, 
                    colour = "segment"), color = "red") +
-  annotate("label", x = t_crossover + (t_second - t_crossover)/2, y = 85, label = "Backward period",
+  annotate("label", x = t_crossover + (t_second - t_crossover)/2, y = 85,
+           label = "Backward period",
            color = "red", fill = "white", hjust = 0.5) +
   # add annotation for early forward phase
   geom_segment(aes(x = t_first, xend = t_first + (t_crossover - t_first)/2, yend = 70, y = 70,
@@ -845,6 +930,15 @@ fig_b
 ggsave(filename = "highspeed_plot_decoding_oddball_sine_illustration_figb.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5.5, height = 4.5)
+```
+
+#### Source Data File Fig. 2d
+
+```{r, echo=TRUE}
+dt_odd_long_fit_shift %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_2d.csv"),
+            row.names = FALSE)
 ```
 
 ```{r, echo = TRUE}
@@ -920,7 +1014,7 @@ calc_periods = function(speed, stim_dur = 0.1, num_stim = 5, tr = 1.25){
 # get the relevant timeperiods for each sequence speed condition:
 speeds = c(0.032, 0.064, 0.128, 0.512, 2.048)
 dt_periods = do.call(rbind, lapply(speeds, calc_periods))
-dt_periods
+rmarkdown::paged_table(dt_periods)
 ```
 
 We save the periods of interest for different speeds which will be used for the analysis of sequence and repetition trials:
@@ -984,6 +1078,8 @@ save(dt_odd_seq_sim, file = file.path(
   path_root, "data", "tmp", "dt_odd_seq_sim.Rdata"))
 ```
 
+#### Figure 2e
+
 ```{r}
 fig_seq_sim_diff = ggplot(data = dt_odd_seq_sim_diff, mapping = aes(
   x = time, y = as.numeric(mean_difference), color = as.factor(speed * 1000),
@@ -1025,6 +1121,16 @@ ggsave(filename = "highspeed_plot_decoding_oddball_sequence_predictions.pdf",
        dpi = "retina", width = 5.5, height = 3)
 ```
 
+#### Source Data File Fig. 2e
+
+```{r, echo=TRUE}
+dt_odd_seq_sim_diff %>%
+  select(-num_subs, -classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_2e.csv"),
+            row.names = FALSE)
+```
+
+### Figure 2
 
 ```{r, echo=TRUE, fig.width=8, fig.height=3}
 upper = plot_grid(fig_odd_peak, plot.odd.long, fig_a, labels = c("a", "b", "c"), ncol = 3,
@@ -1034,7 +1140,7 @@ lower = plot_grid(fig_b, fig_seq_sim_diff, labels = c("d", "e"), nrow = 1,
 plot_grid(upper, lower, nrow = 2, ncol = 1, rel_heights = c(2.5, 3))
 ```
 
-```{r, include=FALSE, eval=FALSE, echo=FALSE}
+```{r}
 ggsave(filename = "highspeed_plot_decoding_oddball_data.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 6.5)
