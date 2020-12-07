@@ -1,4 +1,4 @@
-## Detecting sequentiality
+## Decoding: Sequence trials
 
 ### Initialization
 
@@ -163,6 +163,8 @@ dt_pred_seq_prob = dt_pred_seq %>%
   setDT(.)
 ```
 
+#### Figure 3a
+
 We plot the decoding probability time-courses:
 
 ```{r}
@@ -206,6 +208,15 @@ plot_raw_probas = function(dt1){
 }
 fig_seq_probas = plot_raw_probas(dt1 = subset(dt_pred_seq_prob, classification == "ovr"))
 fig_seq_probas
+```
+
+#### Source Data File Fig. 3a
+
+```{r, echo=TRUE}
+subset(dt_pred_seq_prob, classification == "ovr") %>%
+  select(-classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3a.csv"),
+            row.names = FALSE)
 ```
 
 We plot the decoding probabilities as a heat-map:
@@ -298,7 +309,7 @@ fig_seq_probas_cue = plot_raw_probas_cue(dt1 = subset(dt_pred_seq_prob_cue, clas
 fig_seq_probas_cue
 ```
 
-### Regression slopes
+### Regression slope timecourses
 
 ```{r, echo=FALSE, eval=FALSE}
 # select positions within every TR that should be selected:
@@ -483,6 +494,7 @@ plot_seq_cor_time = function(dt, variable){
 }
 ```
 
+#### Figure 3b
 
 ```{r}
 fig_seq_cor_time = plot_seq_cor_time(dt = subset(
@@ -504,6 +516,45 @@ fig_seq_cor_time; fig_seq_slope_time; fig_seq_step_time
 ggsave(filename = "highsspeed_plot_decoding_sequence_timecourses_slopes.pdf",
        plot = fig_seq_slope_time, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5.5, height = 3)
+```
+
+#### Source Data File Fig. 3b
+
+```{r, echo=TRUE}
+subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp, -pvalue_adjust,
+         -pvalue_round, -pvalue_adjust_round, -pvalue, -df, -cohens_d,
+         -tvalue, -significance) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3b.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S5a
+
+```{r, echo=TRUE}
+subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp, -pvalue_adjust,
+         -pvalue_round, -pvalue_adjust_round, -pvalue, -df, -cohens_d,
+         -tvalue, -significance) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s5a.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S5c
+
+```{r, echo=TRUE}
+subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_step"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp, -pvalue_adjust,
+         -pvalue_round, -pvalue_adjust_round, -pvalue, -df, -cohens_d,
+         -tvalue, -significance) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s5c.csv"),
+            row.names = FALSE)
 ```
 
 We test depending on the target cue position:
@@ -693,6 +744,8 @@ dt_between_results = dt_between %>%
 rmarkdown::paged_table(dt_between_results)
 ```
 
+#### Figure 3d
+
 We plot the correlations between the regression slope time courses predicted by the model vs. the observed data *between* participants:
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
@@ -726,6 +779,14 @@ fig_seq_cor_between = ggplot(
         panel.background = element_blank())
 # show the plot:
 fig_seq_cor_between
+```
+
+#### Source Data File Fig. 3d
+
+```{r, echo=TRUE}
+dt_between %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3d.csv"),
+            row.names = FALSE)
 ```
 
 #### Correlation within participants
@@ -794,6 +855,9 @@ dt_within_cor_results = setDT(dt_within_cor) %>%
 # show the table with the t-test results:
 rmarkdown::paged_table(dt_within_cor_results)
 ```
+
+#### Figure 3e
+
 We plot the correlations between the predicted and the observed time courses *within* participants for each of the five speed conditions (inter-stimulus intervals):
 
 ```{r, echo=TRUE}
@@ -829,8 +893,16 @@ fig_seq_cor_within = ggplot(
 fig_seq_cor_within
 ```
 
+#### Source Data File Fig. 3e
 
+```{r, echo=TRUE}
+dt_within_cor %>%
+  select(-num_trs, -pvalue) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3e.csv"),
+            row.names = FALSE)
+```
 
+### Regression slope means
 
 Calculate the average correlation or average regression slope
 for each time period (forward versus backward) for all five speed conditions:
@@ -897,7 +969,7 @@ rmarkdown::paged_table(
   filter(pvalue_adjust < 0.05, classification == "ovr"))
 ```
 
-
+#### Figure 3c
 
 ```{r, echo=TRUE}
 plot_seq_cor_period = function(data, variable){
@@ -962,6 +1034,41 @@ fig_seq_cor_period = plot_seq_cor_period(data = dt_pred_seq_cor, variable = "mea
 fig_seq_slope_period = plot_seq_cor_period(data = dt_pred_seq_cor, variable = "mean_slope")
 fig_seq_step_period = plot_seq_cor_period(data = dt_pred_seq_cor, variable = "mean_step")
 fig_seq_cor_period; fig_seq_step_period; fig_seq_slope_period;
+```
+
+#### Source Data File Fig. 3e / S5b / S5d
+
+```{r}
+dt_pred_seq_cor %>%
+  select(-classification, -num_trials, -color) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3c.csv"),
+            row.names = FALSE)
+dt_pred_seq_cor %>%
+  select(-classification, -num_trials, -color) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s5b.csv"),
+            row.names = FALSE)
+dt_pred_seq_cor %>%
+  select(-classification, -num_trials, -color) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s5d.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S5b
+
+```{r}
+dt_pred_seq_cor %>%
+  select(-classification, -num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3c.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S5c
+
+```{r}
+dt_pred_seq_cor %>%
+  select(-classification, -num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3c.csv"),
+            row.names = FALSE)
 ```
 
 ```{r, echo = FALSE}
@@ -1286,10 +1393,11 @@ dt_pred_seq_pos_tr = dt_pred_seq_pos %>%
   setorder(., classification, period, tITI, seq_tr)
 
 dt_pred_seq_pos_tr %>%
-  filter(classification == "ovr", pvalue_adjust < 0.05)
+  filter(classification == "ovr", pvalue_adjust < 0.05) %>%
+  rmarkdown::paged_table(.)
 ```
 
-```{r, eval = FALSE}
+```{r, eval = FALSE, echo=TRUE}
 cfg = list(variable = "mean_position", threshold = 2.021, baseline = 3,
   grouping = c("classification", "tITI"), n_perms = 10000, n_trs = 13)
 dt_pred_seq_pos_cluster = cluster_permutation(dt_pred_seq_pos_sub, cfg)
@@ -1305,6 +1413,8 @@ anova(lme_seq_pos)
 emmeans_results = emmeans(lme_seq_pos, list(pairwise ~ period | tITI))
 emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
 ```
+
+#### Figure 3g
 
 ```{r, echo=TRUE}
 variable = "position_diff"
@@ -1357,6 +1467,16 @@ ggsave(filename = "highspeed_plot_decoding_sequence_position_period.pdf",
        dpi = "retina", width = 5, height = 3)
 ```
 
+#### Source Data File Fig. 3g
+
+```{r, echo=TRUE}
+subset(plot_data, classification == "ovr") %>%
+  select(-classification, -color) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3g.csv"),
+            row.names = FALSE)
+```
+
+#### Figure 3f
 
 ```{r, echo = FALSE}
 plot_seq_pos <- function(dt){
@@ -1406,6 +1526,18 @@ plot_seq_pos <- function(dt){
 fig_seq_pos_time = plot_seq_pos(dt = subset(dt_pred_seq_pos_tr, classification == "ovr"))
 fig_seq_pos_time
 ```
+
+#### Source Data File Fig. 3f
+
+```{r, echo=TRUE}
+subset(dt_pred_seq_pos_tr, classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp, -pvalue_adjust,
+         -pvalue_rounded, -pvalue_adjust_rounded, -pvalue, -df,
+         -tvalue, -significance, -sd_position) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3f.csv"),
+            row.names = FALSE)
+```
+
 
 ```{r, echo = FALSE}
 plot_seq_pos_facet <- function(dt){
@@ -1532,7 +1664,8 @@ dt_pred_seq_step_stat = dt_pred_seq_step_mean %>%
   setorder(., classification, zone, tITI)
 
 dt_pred_seq_step_stat %>%
-  filter(classification == "ovr", pvalue_adjust < 0.05)
+  filter(classification == "ovr", pvalue_adjust < 0.05) %>%
+  rmarkdown::paged_table(.)
 ```
 
 We compare each period to the baseline:
@@ -1571,8 +1704,11 @@ dt_pred_seq_step_stat_baseline = dt_pred_seq_step_mean %>%
   setorder(., classification, period_short, zone, tITI)
 
 dt_pred_seq_step_stat_baseline %>%
-  filter(classification == "ovr", pvalue < 0.05)
+  filter(classification == "ovr", pvalue < 0.05) %>%
+  rmarkdown::paged_table(.)
 ```
+
+#### Figure 3h
 
 ```{r}
 # plot average correlation or betas for each speed condition and time period:
@@ -1608,6 +1744,15 @@ fig_seq_step = ggplot(data = subset(dt_pred_seq_step_mean, classification == "ov
 fig_seq_step
 ```
 
+#### Source Data File Fig. 3h
+
+```{r, echo=TRUE}
+subset(dt_pred_seq_step_mean, classification == "ovr") %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_3h.csv"),
+            row.names = FALSE)
+```
+
 ```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_step_size.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
@@ -1625,6 +1770,114 @@ ggsave(filename = "highspeed_plot_decoding_sequence_between_tr.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 4)
 ```
+
+```{r}
+plot_grid(fig_seq_cor_time, fig_seq_cor_period, fig_seq_step_time, fig_seq_step_period,
+          labels = "auto", ncol = 2, nrow = 2, label_fontface = "bold")
+```
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
+ggsave(filename = "highspeed_plot_decoding_sequence_correlation_step.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 7)
+ggsave(filename = "wittkuhn_schuck_figure_s5.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 10, height = 7)
+```
+
+#### Source Data File Fig. 3f
+
+```{r}
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+
+seq_test_time(data = dt_pred_seq_cor, variable = "mean_step") %>%
+  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
+  rmarkdown::paged_table(.)
+```
+
+#### Figure S6
+
+```{r}
+fig_seq_slope_time_facet = plot_seq_cor_facet(dt = subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope"),
+  classification == "ovr"), variable = "mean_slope")
+
+fig_seq_cor_time_facet = plot_seq_cor_facet(dt = subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor"),
+  classification == "ovr"), variable = "mean_cor")
+
+fig_seq_step_time_facet = plot_seq_cor_facet(dt = subset(
+  seq_test_time(data = dt_pred_seq_cor, variable = "mean_step"),
+  classification == "ovr"), variable = "mean_step")
+
+remove_xaxis = theme(axis.title.x = element_blank())
+remove_facets = theme(strip.background = element_blank(), strip.text.x = element_blank())
+
+plot_grid(fig_seq_slope_time_facet + remove_xaxis,
+          fig_seq_pos_time_facet  + remove_xaxis + theme(legend.position = "none") + remove_facets,
+          fig_seq_cor_time_facet + remove_xaxis + theme(legend.position = "none") + remove_facets,
+          fig_seq_step_time_facet + theme(legend.position = "none") + remove_facets,
+  labels = "auto", ncol = 1, label_fontface = "bold")
+```
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
+ggsave(filename = "highspeed_plot_decoding_sequence_timecourse_slope_correlation_step.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 9)
+```
+
+```{r}
+ggsave(filename = "wittkuhn_schuck_figure_s6.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
+       dpi = "retina", width = 7, height = 9)
+```
+
+#### Source Data File Fig. S6a
+
+```{r}
+subset(seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s6a.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S6b
+
+```{r}
+subset(dt_pred_seq_pos_tr, classification == "ovr")  %>%
+  select(-classification, -num_subs, -num_comp) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s6b.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S6c
+
+```{r}
+subset(seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s6c.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. S6d
+
+```{r}
+subset(seq_test_time(data = dt_pred_seq_cor, variable = "mean_step"),
+  classification == "ovr") %>%
+  select(-classification, -num_subs, -num_comp) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s6d.csv"),
+            row.names = FALSE)
+```
+
+### Figure 3
 
 Plot Figure 3 in the main text:
 
@@ -1645,11 +1898,13 @@ plot_grid(
 ggsave(filename = "highspeed_plot_decoding_sequence_data.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
+```
+
+```{r}
 ggsave(filename = "wittkuhn_schuck_figure_3.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
 ```
-
 
 ```{r, include=FALSE, echo=TRUE, eval=FALSE, warning=FALSE, message=FALSE}
 title_nomax = ggdraw() + draw_label("Sequence item with highest probability removed", fontface = "plain")
@@ -1678,7 +1933,6 @@ plot_all = plot_grid(
 plot_all
 ```
 
-
 ```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_sequence_slope_remove_items.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
@@ -1688,65 +1942,4 @@ ggsave(filename = "wittkuhn_schuck_figure_s7.pdf",
        dpi = "retina", width = 10, height = 10)
 ```
 
-```{r}
-plot_grid(fig_seq_cor_time, fig_seq_cor_period, fig_seq_step_time, fig_seq_step_period,
-          labels = "auto", ncol = 2, nrow = 2, label_fontface = "bold")
-```
 
-```{r, echo=FALSE, eval=FALSE, include=FALSE}
-ggsave(filename = "highspeed_plot_decoding_sequence_correlation_step.pdf",
-       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 10, height = 7)
-ggsave(filename = "wittkuhn_schuck_figure_s5.pdf",
-       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 10, height = 7)
-```
-
-```{r}
-seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope") %>%
-  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
-  rmarkdown::paged_table(.)
-
-seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor") %>%
-  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
-  rmarkdown::paged_table(.)
-
-seq_test_time(data = dt_pred_seq_cor, variable = "mean_step") %>%
-  filter(pvalue_adjust < 0.05 & classification == "ovr") %>%
-  rmarkdown::paged_table(.)
-```
-
-
-
-```{r}
-fig_seq_slope_time_facet = plot_seq_cor_facet(dt = subset(
-  seq_test_time(data = dt_pred_seq_cor, variable = "mean_slope"),
-  classification == "ovr"), variable = "mean_slope")
-
-fig_seq_cor_time_facet = plot_seq_cor_facet(dt = subset(
-  seq_test_time(data = dt_pred_seq_cor, variable = "mean_cor"),
-  classification == "ovr"), variable = "mean_cor")
-
-fig_seq_step_time_facet = plot_seq_cor_facet(dt = subset(
-  seq_test_time(data = dt_pred_seq_cor, variable = "mean_step"),
-  classification == "ovr"), variable = "mean_step")
-
-remove_xaxis = theme(axis.title.x = element_blank())
-remove_facets = theme(strip.background = element_blank(), strip.text.x = element_blank())
-
-plot_grid(fig_seq_slope_time_facet + remove_xaxis,
-          fig_seq_pos_time_facet  + remove_xaxis + theme(legend.position = "none") + remove_facets,
-          fig_seq_cor_time_facet + remove_xaxis + theme(legend.position = "none") + remove_facets,
-          fig_seq_step_time_facet + theme(legend.position = "none") + remove_facets,
-  labels = "auto", ncol = 1, label_fontface = "bold")
-
-```
-
-```{r, echo=FALSE, eval=FALSE, include=FALSE}
-ggsave(filename = "highspeed_plot_decoding_sequence_timecourse_slope_correlation_step.pdf",
-       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 7, height = 9)
-ggsave(filename = "wittkuhn_schuck_figure_s6.pdf",
-       plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
-       dpi = "retina", width = 7, height = 9)
-```

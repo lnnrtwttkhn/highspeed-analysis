@@ -1,4 +1,4 @@
-## Repetition trials
+## Decoding: Repetition trials
 
 ### Preparation
 
@@ -164,6 +164,15 @@ ggsave(filename = "highspeed_plot_decoding_repetition_timecourses_supplement.pdf
        dpi = "retina", width = 6, height = 5)
 ```
 
+#### Source Data File Fig. 4a
+
+```{r, echo=TRUE}
+subset(dt_pred_rep_timecourses, classification == "ovr") %>%
+  select(-classification, -num_sub) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4a.csv"),
+            row.names = FALSE)
+```
+
 ### Mean probabilities
 
 #### Figure 4b
@@ -277,6 +286,15 @@ ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs
        dpi = "retina", width = 4, height = 3)
 ```
 
+#### Source Data File Fig. 4b
+
+```{r, echo=TRUE}
+subset(dt_pred_rep_mean_prob_plot, classification == "ovr") %>%
+  select(-classification, -num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4b.csv"),
+            row.names = FALSE)
+```
+
 #### Figure 4c
 
 ```{r}
@@ -378,6 +396,15 @@ fig_c
 ggsave(filename = "highspeed_plot_decoding_repetition_average_probabilities.pdf",
        plot = fig_c, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 5, height = 3)
+```
+
+#### Source Data File Fig. 4c
+
+```{r, echo=TRUE}
+subset(dt_pred_rep_a2_sub, classification == "ovr") %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4c.csv"),
+            row.names = FALSE)
 ```
 
 #### Figure S8
@@ -493,6 +520,15 @@ fig_d
 ggsave(filename = "highspeed_plot_decoding_repetition_duration_supplement.pdf",
        plot = fig_d, device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 3.5, height = 2)
+```
+
+#### Source Data File Fig. S8
+
+```{r, echo=TRUE}
+subset(dt_pred_rep_all_reps_mean, classification == "ovr") %>%
+  select(-classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s8.csv"),
+            row.names = FALSE)
 ```
 
 ### Step-sizes
@@ -708,21 +744,21 @@ out-of-sequence elements:
 transition_type <- function(head, tail){
   if (head == 1 & tail == 2){
     transition_type = "forward"
-  } else if(head == 2 & tail == 1) {
+  } else if (head == 2 & tail == 1) {
     transition_type = "backward"
-  } else if(head == 1 & tail == 1) {
+  } else if (head == 1 & tail == 1) {
     transition_type = "repetition 1"
-  } else if(head == 2 & tail == 2) {
+  } else if (head == 2 & tail == 2) {
     transition_type = "repetition 2"
   #} else if(head == tail) {
   #  transition_type = "repetition"
-  } else if(head %in% c(1,2) & tail > 2) {
+  } else if (head %in% c(1,2) & tail > 2) {
     transition_type = "outwards"
-  } else if(head > 2 & tail %in% c(1,2)) {
+  } else if (head > 2 & tail %in% c(1,2)) {
     transition_type = "inwards"
-  } else if(head > 2 & tail > 2 & head != tail) {
+  } else if (head > 2 & tail > 2 & head != tail) {
     transition_type = "outside"
-  } else if(head > 2 & tail > 2 & head == tail) {
+  } else if (head > 2 & tail > 2 & head == tail) {
     transition_type = "repetition out"
   } else {
       transition_type = "ERROR!"
@@ -874,6 +910,15 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
        dpi = "retina", width = 8, height = 3)
 ```
 
+#### Source Data File Fig. 4e
+
+```{r, echo=TRUE}
+subset(dt_pred_rep_step_trans, classification == "ovr" & change %in% c(2,9)) %>%
+  select(-classification, -num_data) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4e.csv"),
+            row.names = FALSE)
+```
+
 #### Figure 4d
 
 ```{r, echo=TRUE}
@@ -929,10 +974,21 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_types.pdf",
        dpi = "retina", width = 5, height = 3)
 ```
 
+#### Source Data File Fig. 4d
 
-compare the average proportion of forward transitions with the average proportion
-of outwards steps in the change = 2 condition. also compare the average
-proportion of forward transitions with the average number of within out-of-sequence transitions:
+```{r, echo=TRUE}
+subset(
+  dt_pred_rep_step_version1, classification == "ovr" & change %in% c(2,9) &
+  step_type != "repetition 1" & step_type != "repetition 2" & step_type != "repetition out"
+) %>%
+  select(-classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4d.csv"),
+            row.names = FALSE)
+```
+
+We compare the average proportion of forward transitions with the average proportion
+of outwards steps in the change = 2 condition.
+We also compare the average proportion of forward transitions with the average number of within out-of-sequence transitions:
 
 ```{r, results = "hold"}
 dt_pred_rep_trans_test = dt_pred_rep_step_version1 %>%
@@ -968,10 +1024,13 @@ plot_grid(plot_grid(fig_a, fig_b, labels = c("a", "b")),
           ncol = 1, label_fontface = "bold")
 ```
 
-```{r, echo=FALSE, include=FALSE, eval=FALSE}
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
 ggsave(filename = "highspeed_plot_decoding_repetition.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
+```
+
+```{r}
 ggsave(filename = "wittkuhn_schuck_figure_4.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 10)
