@@ -1,8 +1,8 @@
-# Results: Resting-state
+## Decoding: Resting-state
 
-## Preparation
+### Preparation
 
-### Initialization
+#### Initialization
 
 We load the data and relevant functions:
 
@@ -25,7 +25,7 @@ The next step is only evaluated during manual execution:
 source(file.path(path_root, "code", "highspeed-analysis-setup.R"))
 ```
 
-### Prepare sequence events data
+#### Prepare sequence events data
 
 We select all events files for sequence trials when the stimuli were presented:
 
@@ -35,7 +35,7 @@ dt_events_seq = subset(dt_events, condition == "sequence" & trial_type == "stimu
 rmarkdown::paged_table(dt_events_seq)
 ```
 
-### Prepare resting decoding data
+#### Prepare resting decoding data
 
 We prepare the resting state data for analysis:
 
@@ -110,7 +110,7 @@ dt_pred_rest_s1 = dt_pred_rest %>%
   setDT(.)
 ```
 
-### Prepare sequence decoding data
+#### Prepare sequence decoding data
 
 We prepare the sequence trial data that will be combined with the resting state data:
 
@@ -142,7 +142,7 @@ dt_pred_seq = dt_pred %>%
     num_trs = .N)]$num_trs == 12)
 ```
 
-### Combine sequence and resting data
+#### Combine sequence and resting data
 
 We combine the sequence and resting state decoding data in one data table:
 
@@ -206,7 +206,7 @@ checkdata = function(dt){
 rmarkdown::paged_table(checkdata(dt_pred_all))
 ```
 
-## Decoding probabilities
+### Decoding probabilities
 
 We draw a random example participant used for plotting:
 
@@ -258,7 +258,7 @@ fig_prob_time_seq = ggplot(data = subset(dt_pred_conc, id == example_id), mappin
 fig_prob_time_seq
 ```
 
-## Calculating sequentiality
+### Calculating sequentiality
 
 We create a function to determine whether a certain sequential combination of the task stimuli has been presented to the participants on sequence trials or not:
 
@@ -398,9 +398,9 @@ save(dt_pred_conc_slope, file = file.path(path_root, "data", "tmp", "dt_pred_con
 load(file.path(path_root, "data", "tmp", "dt_pred_conc_slope.Rdata"))
 ```
 
-## Mean slope coefficients
+### Mean slope coefficients
 
-### Fixed event order
+#### Fixed event order
 
 We calculate the mean slope coefficients assuming a fixed ordering of sequence events for sequence trials:
 
@@ -424,7 +424,9 @@ dt_pred_conc_slope_mean <- dt_pred_conc_slope %>%
   setDT(.)
 ```
 
-Plot the mean regression coefficient separately for
+#### Figure 5c
+
+We plot the mean regression coefficient separately for
 all sequence speed conditions and the pre-task resting state data.
 Trial boundaries (for sequence trials) are shown as gray vertical lines.
 
@@ -460,7 +462,17 @@ fig_prob_slope = ggplot(
 fig_prob_slope
 ```
 
+#### Source Data File Fig. 5c
+
+```{r}
+dt_pred_conc_slope_mean %>% filter(tITI != "Rest Post S1") %>%
+  select(-num_subs, -classification) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5c.csv"),
+            row.names = FALSE)
+```
+
 We calculate the mean regression slopes and compare sequence and rest:
+
 ```{r}
 # calculate mean regression slopes for fast and slow sequence trials and rest:
 dt_pred_conc_slope_stat = dt_pred_conc_slope %>%
@@ -500,7 +512,9 @@ print(cohensd_rest); print(cohensd_slow)
 fast_vs_rest_pre; fast_vs_slow
 ```
 
-Plot the mean absolute regression slope for all speed conditions
+#### Figure 5a / 5b
+
+We plot the mean absolute regression slope for all speed conditions
 and pre-task resting state data:
 
 ```{r}
@@ -538,7 +552,20 @@ fig_sd_prob = plot_means(data = dt_pred_conc_slope_stat, variable = "mean_sd_pro
 fig_mean_beta; fig_mean_beta_abs; fig_sd_prob;
 ```
 
-### All possible event orders
+#### Source Data File Fig. 5a / 5b
+
+```{r}
+dt_pred_conc_slope_stat %>%
+  select(-classification, -num_trs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5a.csv"),
+            row.names = FALSE)
+dt_pred_conc_slope_stat %>%
+  select(-classification, -num_trs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5b.csv"),
+            row.names = FALSE)
+```
+
+#### All possible event orders
 
 We calculate the mean slope for every time point (for every TR) depending on
 if a sequence was actually seen or not (relevant for resting state data).
@@ -704,9 +731,9 @@ fig_mean_beta_seen; fig_mean_beta_abs_seen; fig_sd_prob_seen;
 fig_mean_pos_abs_seen; fig_mean_neg_abs_seen; fig_mean_slope_seen
 ```
 
-## Frequency spectrum analyses
+### Frequency spectrum analyses
 
-### Fixed event order
+#### Fixed event order
 
 We create a data table with frequency expectations:
 
@@ -715,8 +742,10 @@ fitfreq = 1 / 5.26
 stim_dur = 0.1
 num_seq_stim = 5
 # calculate the delta 
-delta_freq_fast = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 0.032))
-delta_freq_slow = fitfreq / (1 + fitfreq * (num_seq_stim * stim_dur + (num_seq_stim - 1) * 2.048))
+delta_freq_fast = fitfreq / (1 + fitfreq * (
+  num_seq_stim * stim_dur + (num_seq_stim - 1) * 0.032))
+delta_freq_slow = fitfreq / (1 + fitfreq * (
+  num_seq_stim * stim_dur + (num_seq_stim - 1) * 2.048))
 delta_freq_rest = 0.01
 # create a data table with the expected frequencies:
 frequency_expectation = data.table(xintercept = c(
@@ -762,6 +791,8 @@ dt_pred_rest_lsp_mean = dt_pred_rest_lsp %>%
   verify(all(num_subs == 32))
 ```
 
+#### Figure 5d
+
 ```{r}
 #colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", grays(1), "black", grays(2))
@@ -797,7 +828,16 @@ fig_freq_lsp = ggplot(
 fig_freq_lsp
 ```
 
-### All possible event orders
+#### Source Data File Fig. 5d
+
+```{r}
+dt_pred_rest_lsp_mean  %>% filter(tITI != "Rest Post S1") %>%
+  select(- classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5d.csv"),
+            row.names = FALSE)
+```
+
+#### All possible event orders
 
 We calculate the frequency spectrum for all permuted resting state sequences and
 sequence trials:
@@ -873,7 +913,7 @@ frequency_expectation = data.table(xintercept = c(
   tITI = c("32 ms", "2048 ms", "Rest Pre S1"))
 ```
 
-### Pre vs. post-task resting-state data
+#### Figure 6a
 
 ```{r, echo=FALSE}
 colors_all = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
@@ -908,6 +948,16 @@ fig_freq_post <- ggplot(data = plot_data, aes(
         panel.border = element_blank(),
         panel.background = element_blank()) 
 fig_freq_post
+```
+
+#### Source Data File Fig. 6a
+
+```{r}
+dt_pred_rest_lsp_mean_seen %>%
+  filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
+  select(-classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_6a.csv"),
+            row.names = FALSE)
 ```
 
 We calculate the relative power (difference between pre- and post task resting state data) across the entire frequency spectrum:
@@ -951,6 +1001,8 @@ increase_fast = round(dt_pred_rest_lsp_mean_rel_seen$freq_bins_smooth[dt_pred_re
 increase_slow; increase_fast;
 ```
 
+#### Figure 6b
+
 ```{r, echo=FALSE}
 colors_all = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray")
 colors_rest = c("black", "darkred")
@@ -985,7 +1037,16 @@ fig_freq_post_rel <- ggplot(data = dt_pred_rest_lsp_mean_rel_seen, aes(
 fig_freq_post_rel
 ```
 
-### Frequency spectra of frequent vs. less frequent sequences
+#### Source Data File Fig. 6b
+
+```{r}
+dt_pred_rest_lsp_mean_rel_seen %>%
+  select(-classification, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_6b.csv"),
+            row.names = FALSE)
+```
+
+#### Frequency spectra of frequent vs. less frequent sequences
 
 We calculate the mean frequency spectra depending on whether the assumed sequences occured more frequency or less frequently during the task:
 
@@ -1066,36 +1127,6 @@ frequency_expectation = data.table(xintercept = c(
 ```
 
 ```{r}
-dt_pred_rest_lsp_rel = dt_pred_rest_lsp %>%
-  # remove columns that are not needed:
-  mutate(num_trs = NULL, filter_width = NULL, power = NULL) %>%
-  # spread the values of the smoothed power for all speed conditions:
-  spread(key = "tITI", value = "power_smooth") %>%
-  # calculate relative to power (relative to resting state data):
-  mutate(power_fast_rel = get("32 ms") / get("Rest Pre S1")) %>%
-  mutate(power_slow_rel = get("2048 ms") / get("Rest Pre S1")) %>%
-  setDT(.) %>%
-  # find the frequency with the highest power for every participant:
-  .[, by = .(classification, id), .(
-    num_bins = .N,
-    max_freq_fast = freq_bins_smooth[which.max(power_fast_rel)],
-    max_freq_slow = freq_bins_smooth[which.max(power_slow_rel)]
-  )] %>%
-  # compare the maximum frequencies of relative fast vs. relative slow data:
-  .[, by = .(classification), {
-    ttest_results = t.test(max_freq_fast, max_freq_slow, paired = TRUE)
-    list(
-      num_subs = .N,
-      pvalue = ttest_results$p.value,
-      tvalue = ttest_results$statistic,
-      df = ttest_results$parameter
-    )}] %>%
-  verify(all(num_subs == 32))
-# print the table:
-rmarkdown::paged_table(dt_pred_rest_lsp_rel)
-```
-
-```{r}
 dt_pred_rest_lsp_exp = dt_pred_rest_lsp %>%
   .[, by = .(classification, id, tITI), .(
     power_index_fast = power_smooth[which.min(abs(freq_bins_smooth - delta_freq_fast))],
@@ -1111,6 +1142,8 @@ dt_pred_rest_lsp_exp = dt_pred_rest_lsp %>%
   filter(classification == "ovr") %>%
   setDT(.)
 ```
+
+#### Figure 5e
 
 ```{r, echo=TRUE}
 colors = c(hcl.colors(5, "Cividis")[c(1)], "gold", "gray", "black")
@@ -1139,6 +1172,44 @@ fig_freq_exp = ggplot(
         panel.border = element_blank(),
         panel.background = element_blank()) 
 fig_freq_exp
+```
+
+```{r, results="hold"}
+lme_power <- lmerTest::lmer(
+  power ~ tITI  + (1 | id),
+  data = dt_pred_rest_lsp_exp %>%
+    filter(tITI != "Rest Post S1" & index == "power_index_fast"),
+  control = lcctrl)
+summary(lme_power)
+anova(lme_power)
+emmeans_results = emmeans(lme_power, list(pairwise ~ tITI))
+emmeans_results
+```
+
+```{r}
+# get the power spectrum of the expected fast frequency in fast data:
+power_fast = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "32 ms")$power
+# get the power spectrum of the expected fast frequency in slow data:
+power_slow = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "2048 ms")$power
+# get the power spectrum of the expected fast frequency in rest data:
+power_rest_pre = subset(dt_pred_rest_lsp_exp, index == "power_index_fast" & tITI == "Rest Pre S1")$power
+# compare fast vs. slow and fast vs. rest:
+ttest_power_fastvsslow = t.test(power_fast, power_slow, paired = TRUE)
+ttest_power_fastvsrestpre = t.test(power_fast, power_rest_pre, paired = TRUE)
+ttest_power_slowvsrestpre = t.test(power_slow, power_rest_pre, paired = TRUE)
+round_pvalues(p.adjust(c(ttest_power_fastvsslow$p.value,
+           ttest_power_fastvsrestpre$p.value,
+           ttest_power_slowvsrestpre$p.value), method = "fdr"))
+ttest_power_fastvsslow; ttest_power_fastvsrestpre; ttest_power_slowvsrestpre
+```
+
+#### Source Data File Fig. 5e
+
+```{r}
+dt_pred_rest_lsp_exp %>% filter(tITI != "Rest Post S1") %>%
+  select(-classification, -index) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5e.csv"),
+            row.names = FALSE)
 ```
 
 ### Relative frequency spectra (all orders)
@@ -1252,6 +1323,8 @@ dt_pred_rest_lsp_exp_seen %>%
   rmarkdown::paged_table(.)
 ```
 
+#### Figure 6c
+
 ```{r}
 plot_data <- dt_pred_rest_lsp_exp_seen %>%
   filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
@@ -1287,7 +1360,19 @@ fig_freq_exp_post = ggplot(data = plot_data, aes(
   #      legend.text = element_text(size = 10))
 fig_freq_exp_post
 ```
-## Figure 6
+
+#### Source Data File Fig. 6c
+
+```{r}
+dt_pred_rest_lsp_exp_seen %>%
+  filter(tITI %in% c("Rest Pre S1", "Rest Post S1")) %>%
+  filter(index == "power_index_fast") %>%
+  select(-classification, -index, -label, -num_seqs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_6c.csv"),
+            row.names = FALSE)
+```
+
+### Figure 6
 
 ```{r}
 plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp_post, nrow = 1, ncol = 3,
@@ -1298,12 +1383,15 @@ plot_grid(fig_freq_post, fig_freq_post_rel, fig_freq_exp_post, nrow = 1, ncol = 
 ggsave(filename = "highspeed_plot_decoding_resting_post.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 9, height = 3)
+```
+
+```{r}
 ggsave(filename = "wittkuhn_schuck_figure_6.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 9, height = 3)
 ```
 
-## Inserting sequence trials into rest
+### Inserting sequence trials into rest
 
 We create a function to sample sequence trials:
 
@@ -1384,7 +1472,8 @@ dt_pred_rest_freq = dt_pred_conc_slope %>%
     mean_spec = mean(mean_spec),
     sem_upper = mean(mean_spec) + (sd(mean_spec)/sqrt(.N)),
     sem_lower = mean(mean_spec) - (sd(mean_spec)/sqrt(.N))
-  )] %>% verify(all(num_subs == 32))
+  )] %>%
+  verify(all(num_subs == 32))
 ```
 
 We insert a number of events with probabilities scaled at different SNR levels:
@@ -1665,13 +1754,16 @@ insert_stat_func = function(dt, variable) {
         df = ttest_results$parameter,
         sem_upper = mean(get(variable)) + (sd(get(variable))/sqrt(.N)),
         sem_lower = mean(get(variable)) - (sd(get(variable))/sqrt(.N))
-      )}] %>% verify(all(num_subs == 32)) %>% verify(all((num_subs - df) == 1)) %>%
+      )}] %>%
+    verify(all(num_subs == 32)) %>%
+    verify(all((num_subs - df) == 1)) %>%
     # adjust p-values for multiple comparisons:
     # check if the number of comparisons matches expectations:
     .[, by = .(classification, speed), ":=" (
       num_comp = .N,
       pvalue_adjust = p.adjust(pvalue, method = "fdr", n = .N)
-    )] %>% verify(all(num_comp == 30, na.rm = TRUE)) %>%
+    )] %>%
+    verify(all(num_comp == 30, na.rm = TRUE)) %>%
     # round the original p-values according to the apa standard:
     mutate(pvalue_round = round_pvalues(pvalue)) %>%
     # round the adjusted p-value:
@@ -1691,6 +1783,8 @@ snr_insert_stat_sd = insert_stat_func(dt = dt_pred_rest_insert_slope, variable =
 snr_insert_stat_slope %>% filter(pvalue_adjust < 0.05)
 snr_insert_stat_sd %>% filter(pvalue_adjust < 0.05)
 ```
+
+#### Figure 5f / 5g
 
 Plot average slope regression coefficients and p-values:
 
@@ -1748,7 +1842,29 @@ fig_snr_data_sd = plot_snr_insert(dt = snr_insert_stat_sd, variable = "mean_sd_d
 fig_snr_pmat_slope; fig_snr_data_slope; fig_snr_pmat_sd; fig_snr_data_sd;
 ```
 
-## Frequency analysis
+#### Source Data File Fig. 5f
+
+```{r}
+snr_insert_stat_sd %>%
+  select(-num_subs, -classification, -pvalue, -tvalue, -df, -significance,
+         -num_comp, -pvalue_adjust, -pvalue_round, -pvalue_adjust_round) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5f.csv"),
+            row.names = FALSE)
+```
+
+#### Source Data File Fig. 5g
+
+```{r}
+snr_insert_stat_sd %>%
+  select(-num_subs, -classification, -pvalue, -tvalue, -df, -significance,
+         -num_comp, -pvalue_adjust, -pvalue_round, -pvalue_adjust_round) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5g.csv"),
+            row.names = FALSE)
+```
+
+### Frequency spectra (inserted)
+
+#### Frequency spectra of augmented rest
 
 We calculate the frequency spectra for sequence-free and sequence-inserted
 (fast and slow sequences) rest:
@@ -1789,6 +1905,7 @@ dt_pred_rest_insert_freq_mean = dt_pred_rest_insert_freq %>%
   )] %>% verify(all(num_subs == 32))
 ```
 
+#### Figure 5h
 
 ```{r}
 colors_snr = rev(colorRampPalette(c('#4890F7', '#EB3C2D'), space = 'Lab')(5))
@@ -1843,8 +1960,19 @@ fig_freq_lsp_insert = ggplot(data = plot_data, aes(
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) 
-
+fig_freq_lsp_insert
 ```
+
+#### Source Data Fig. 5h
+
+```{r}
+plot_data %>%
+  select(-classification, -bin, -num_subs) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5h.csv"),
+            row.names = FALSE)
+```
+
+#### Expected frequency ranges
 
 ```{r}
 dt_pred_rest_lsp_insert_exp = dt_pred_rest_insert_freq %>%
@@ -1873,7 +2001,6 @@ dt_pred_rest_lsp_insert_exp = dt_pred_rest_insert_freq %>%
 ```
 
 ```{r}
-# calculate t
 dt_pred_rest_lsp_insert_exp_mean = dt_pred_rest_lsp_insert_exp %>%
   # filter out the irrelvant rest power index:
   filter(index != "power_index_rest") %>% setDT(.) %>%
@@ -1903,6 +2030,7 @@ dt_pred_rest_lsp_insert_exp_mean = dt_pred_rest_lsp_insert_exp %>%
 dt_pred_rest_lsp_insert_exp_mean %>% filter(pvalue < 0.05)
 ```
 
+#### Figure 5i
 
 ```{r}
 cols_order = rev(colorRampPalette(c('#4890F7', '#EB3C2D'), space = 'Lab')(5))
@@ -1942,10 +2070,19 @@ fig_freq_exp_insert = ggplot(data = plot_data, aes(
 fig_freq_exp_insert
 ```
 
-## Figure 5
+#### Source Data Fig. 5i
 
 ```{r}
-panel_1 = plot_grid(fig_sd_prob, fig_mean_beta, ncol = 2, labels = c("a", "b"))
+plot_data %>%
+  select(-classification, -fast_min, -fast_max, -slow_min, -slow_max) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_5i.csv"),
+            row.names = FALSE)
+```
+
+### Figure 5
+
+```{r}
+panel_1 = plot_grid(fig_sd_prob, fig_mean_beta_abs, ncol = 2, labels = c("a", "b"))
 panel_2 = plot_grid(fig_prob_slope, ncol = 1, labels = c("c"))
 panel_3 = plot_grid(fig_freq_lsp, fig_freq_exp, ncol = 2, labels = c("d", "e"))
 panel_4 = plot_grid(fig_snr_data_sd, fig_snr_pmat_sd, labels = c("f", "g"))
@@ -1957,6 +2094,9 @@ plot_grid(plot_grid(panel_1, panel_2, ncol = 2), panel_3, panel_4, panel_5, ncol
 ggsave(filename = "highspeed_plot_decoding_rest.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
+```
+
+```{r}
 ggsave(filename = "wittkuhn_schuck_figure_5.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 10, height = 12)
