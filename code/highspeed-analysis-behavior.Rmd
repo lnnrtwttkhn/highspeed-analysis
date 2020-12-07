@@ -83,7 +83,9 @@ timings_summary = dt_events %>%
 rmarkdown::paged_table(timings_summary)
 ```
 
-```{r, echo = FALSE}
+We plot the differences in expected versus actual timings of individual stimuli in the behavioral task:
+
+```{r}
 ggplot(data = dt_events, aes(
   y = as.numeric(duration_diff),
   x = as.factor(trial_type),
@@ -112,6 +114,7 @@ ggsave(filename = "highspeed_plot_behavior_timing_differences.pdf",
 ```
 
 We check the timing of the inter-trial interval on oddball trials:
+
 ```{r}
 dt_odd_iti_mean = dt_events %>%
   # filter for the stimulus intervals on oddball trials:
@@ -123,16 +126,17 @@ dt_odd_iti_mean = dt_events %>%
     num_trials = .N
   )] %>%
   verify(num_trials == 600)
-rmarkdown::paged_table(dt_odd_iti_mean)
+rmarkdown::paged_table(head(dt_odd_iti_mean))
 ```
 
-### Overview: Behavioral performance
+### Behavioral performance
 
 #### Mean accuracy
 
 We calculate the mean behavioral accuracy across all trials of all three task conditions (slow, sequence, and repetition trials):
 
-```{r, echo = TRUE}
+```{r, echo=TRUE}
+# behavioral chance level is at 50%:
 chance_level = 50
 dt_acc = dt_events %>%
   # filter out all events that are not related to a participants' response:
@@ -171,7 +175,7 @@ subjects_excluded = unique(dt_acc$subject[dt_acc$exclude == "yes"])
 print(subjects_excluded)
 ```
 
-We calculate the mean behavioral accuracy across all three task conditions (slow, sequence, and repetition trials), *excluding* partipants that performed below chance on either or both sequence and repetition trials:
+We calculate the mean behavioral accuracy across all three task conditions (slow, sequence, and repetition trials), *excluding* participants that performed below chance on either or both sequence and repetition trials:
 
 ```{r, echo=TRUE, results="hold"}
 dt_acc_mean = dt_acc %>%
@@ -238,7 +242,7 @@ fig_behav_all = ggplot(data = subset(dt_acc, exclude == "no"), aes(
 fig_behav_all
 ```
 
-#### Below chance performance
+#### Figure S1a
 
 We plot data of all participants with below chance performers highlighted in red.
 
@@ -246,7 +250,8 @@ We plot data of all participants with below chance performers highlighted in red
 fig_behav_all_outlier = ggplot(data = dt_acc_mean,
   mapping = aes(x = as.factor(condition_short), y = as.numeric(mean_accuracy),
                 group = as.factor(condition_short), fill = as.factor(condition_short))) +
-  geom_bar(aes(fill = as.factor(condition)), stat = "identity", color = "black", fill = "white") +
+  geom_bar(aes(fill = as.factor(condition)), stat = "identity",
+           color = "black", fill = "white") +
   geom_point(data = subset(dt_acc, exclude == "no"),
              aes(color = as.factor(exclude)),
              position = position_jitter(width = 0.2, height = 0, seed = 2),
@@ -261,7 +266,8 @@ fig_behav_all_outlier = ggplot(data = dt_acc_mean,
   scale_color_manual(values = c("darkgray", "red"), name = "Outlier") +
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
   coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(0, 100)) +
-  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.x = element_line(color = "white"),
+        axis.line.x = element_line(color = "white")) +
   guides(shape = FALSE, fill = FALSE) +
   theme(axis.text = element_text(color = "black")) +
   theme(axis.ticks = element_line(color = "black")) +
@@ -272,6 +278,15 @@ fig_behav_all_outlier = ggplot(data = dt_acc_mean,
         panel.border = element_blank(),
         panel.background = element_blank())
 fig_behav_all_outlier
+```
+
+#### Source Data File Fig. S1a
+
+```{r, echo =TRUE}
+dt_acc %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1a.csv"),
+            row.names = FALSE)
 ```
 
 ### Slow trials
@@ -309,8 +324,10 @@ fig_behav_odd = ggplot(data = dt_acc_odd, aes(
   geom_hline(aes(yintercept = 50), linetype = "dashed", color = "black") +
   #coord_capped_cart(left = "both", bottom = "none", expand = TRUE, ylim = c(90, 100)) +
   theme(plot.title = element_text(size = 12, face = "plain")) +
-  theme(axis.ticks.x = element_line(color = "white"), axis.line.x = element_line(color = "white")) +
-  theme(axis.title.x = element_text(color = "white"), axis.text.x = element_text(color = "white")) +
+  theme(axis.ticks.x = element_line(color = "white"),
+        axis.line.x = element_line(color = "white")) +
+  theme(axis.title.x = element_text(color = "white"),
+        axis.text.x = element_text(color = "white")) +
   ggtitle("Slow") +
   theme(plot.title = element_text(hjust = 0.5))
 fig_behav_odd
@@ -385,6 +402,8 @@ anova(lme_odd_behav_run)
 rm(dt)
 ```
 
+#### Figure S1c
+
 We plot the behavioral accuracy on slow trials (oddball task condition) across task runs (x-axis) for each study session (panels):
 
 ```{r, echo=TRUE}
@@ -401,7 +420,8 @@ plot_odd_run = ggplot(data = dt_odd_behav_run_mean, mapping = aes(
   ylab("Accuracy (%)") + xlab("Run") +
   ylim(c(90, 100)) +
   coord_capped_cart(left = "both", bottom = "both", expand = TRUE, ylim = c(90,100)) +
-  theme(axis.ticks.x = element_text(color = "white"), axis.line.x = element_line(color = "white")) +
+  theme(axis.ticks.x = element_text(color = "white"),
+        axis.line.x = element_line(color = "white")) +
   theme(strip.text.x = element_text(margin = margin(b = 2, t = 2))) +
   theme(axis.text = element_text(color = "black")) +
   theme(axis.ticks = element_line(color = "black")) +
@@ -412,6 +432,15 @@ plot_odd_run = ggplot(data = dt_odd_behav_run_mean, mapping = aes(
         panel.border = element_blank(),
         panel.background = element_blank())
 plot_odd_run
+```
+
+#### Source Data File Fig. S1c
+
+```{r}
+dt_odd_behav_run_mean %>%
+  select(-num_subs, -mean_accuracy_z) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1c.csv"),
+            row.names = FALSE)
 ```
 
 #### Misses vs. false alarms
@@ -438,8 +467,7 @@ dt_odd_behav_sdt_sub = dt_events %>%
   complete(nesting(subject, session, run_session), nesting(sdt_type),
            fill = list(num_trials = 0, freq = 0)) %>%
   transform(freq = freq * 100) %>%
-  filter(sdt_type %in% c("false alarm", "miss")) %>%
-  mutate(sdt_type_numeric = ifelse(sdt_type == "false alarm", 1, -1))
+  filter(sdt_type %in% c("false alarm", "miss"))
 ```
 
 We run a LME model to test the effect of signal detection type (miss vs. false alarm), task run and session on the frequency of those events:
@@ -454,6 +482,8 @@ emmeans_results = emmeans(lme_odd_behav_sdt, list(pairwise ~ sdt_type))
 emmeans_pvalues = round_pvalues(summary(emmeans_results[[2]])$p.value)
 emmeans_results
 ```
+
+#### Figure S1b
 
 We plot the frequency of misses and false alarms as a function of task run and study session:
 
@@ -490,6 +520,15 @@ plot_odd_sdt = ggplot(data = dt_odd_behav_sdt_sub, mapping = aes(
         panel.border = element_blank(),
         panel.background = element_blank())
 plot_odd_sdt
+```
+
+#### Source Data File Fig. S1b
+
+```{r}
+dt_odd_behav_sdt_sub %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1b.csv"),
+            row.names = FALSE)
 ```
 
 ### Sequence trials
@@ -595,7 +634,9 @@ reduced_acc = round((1 - (b/a)) * 100, 2)
 sprintf("reduction in accuracy: %.2f", reduced_acc)
 ```
 
-```{r, echo=FALSE}
+#### Figure 1e
+
+```{r, echo=TRUE}
 fig_seq_speed = ggplot(data = dt_seq_behav_speed, mapping = aes(
   y = as.numeric(mean_accuracy), x = as.factor(as.numeric(trial_speed)*1000),
   fill = as.factor(trial_speed), color = as.factor(trial_speed))) +
@@ -623,6 +664,15 @@ fig_seq_speed = ggplot(data = dt_seq_behav_speed, mapping = aes(
         panel.border = element_blank(),
         panel.background = element_blank())
 fig_seq_speed
+```
+
+#### Source Data File Fig. 1e
+
+```{r}
+dt_seq_behav_speed %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_1e.csv"),
+            row.names = FALSE)
 ```
 
 #### Effect of target position
@@ -653,6 +703,8 @@ summary(lme_seq_behav_position)
 anova(lme_seq_behav_position)
 ```
 
+#### Figure S1d
+
 ```{r, echo=TRUE}
 fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
   y = as.numeric(mean_accuracy), x = as.factor(trial_target_position),
@@ -678,6 +730,15 @@ fig_seq_position = ggplot(data = dt_seq_behav_position, mapping = aes(
         panel.border = element_blank(),
         panel.background = element_blank())
 fig_seq_position
+```
+
+#### Source Data File Fig. S1d
+
+```{r}
+dt_seq_behav_position %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1d.csv"),
+            row.names = FALSE)
 ```
 
 ### Repetition trials
@@ -760,6 +821,9 @@ dt_rep_behav_chance = dt_rep_behav %>%
 # print table:
 rmarkdown::paged_table(dt_rep_behav_chance)
 ```
+
+#### Figure 1f
+
 We plot the results of the forward and backward interference conditions:
 
 ```{r, echo=TRUE}
@@ -798,6 +862,17 @@ fig_behav_rep = ggplot(data = plot_data, mapping = aes(
         panel.background = element_blank())
 fig_behav_rep
 ```
+
+#### Source Data File Fig. 1f
+
+```{r}
+dt_rep_behav %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_1f.csv"),
+            row.names = FALSE)
+```
+
+#### Figure S1e
 
 We plot the results of all intermediate repetition conditions:
 
@@ -838,6 +913,15 @@ plot_behav_rep_all = ggplot(data = plot_data, mapping = aes(
 plot_behav_rep_all
 ```
 
+#### Source Data File Fig. S1e
+
+```{r}
+dt_rep_behav %>%
+  select(-num_trials) %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1e.csv"),
+            row.names = FALSE)
+```
+
 ```{r, echo=TRUE, eval=FALSE}
 ggsave(filename = "highspeed_plot_behavior_repetition_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures,
@@ -869,6 +953,13 @@ ggsave(filename = "highspeed_plot_behavior_horizontal.pdf",
        scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
 ```
 
+```{r, echo=FALSE}
+ggsave(filename = "wittkuhn_schuck_figure_1ef.pdf",
+       plot = last_plot(), device = cairo_pdf, path = path_figures,
+       scale = 1, dpi = "retina", width = 7, height = 3, units = "in")
+```
+
+
 ### Figure SI
 
 We plot the figure for the supplementary information:
@@ -888,6 +979,9 @@ plot_grid(
 ggsave(filename = "highspeed_plot_behavior_supplement.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 8, height = 5)
+```
+
+```{r}
 ggsave(filename = "wittkuhn_schuck_figure_s1.pdf",
        plot = last_plot(), device = cairo_pdf, path = path_figures, scale = 1,
        dpi = "retina", width = 8, height = 5)

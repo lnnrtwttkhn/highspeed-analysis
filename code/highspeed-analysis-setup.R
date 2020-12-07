@@ -26,7 +26,9 @@ source(file.path(path_root, "code", "highspeed-cluster-permutation.R"))
 source(file.path(path_root, "code", "raincloud-plots", "tutorial_R", "R_rainclouds.R"))
 source(file.path(path_root, "code", "raincloud-plots", "tutorial_R", "summarySE.R"))
 # path to figures created by the analysis code:
-path_figures <- here::here("figures")
+path_figures <- file.path(path_root, "figures")
+# path to source data created by the analysis code:
+path_source_data <- file.path(path_root, "sourcedata")
 # path to the participants.tsv file (according to BIDS):
 # datalad get data/bids/participants.tsv
 path_participants <- file.path(path_root, "data", "bids", "participants.tsv")
