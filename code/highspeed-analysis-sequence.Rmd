@@ -1664,7 +1664,7 @@ dt_pred_seq_step_stat = dt_pred_seq_step_mean %>%
   setorder(., classification, zone, tITI)
 
 dt_pred_seq_step_stat %>%
-  filter(classification == "ovr", pvalue_adjust < 0.05) %>%
+  filter(classification == "ovr") %>%
   rmarkdown::paged_table(.)
 ```
 
