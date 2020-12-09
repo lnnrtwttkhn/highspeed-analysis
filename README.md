@@ -8,8 +8,8 @@ Please visit https://wittkuhn.mpib.berlin/highspeed/ for the project website and
 
 ## Dataset structure
 
-- `/code` contains all project-specific code, mainly `.Rmd` notebooks. The rendered versions of the notebooks can be found on the project website
-- `/data` contains relevant input datasets (here, the behavioral `events.tsv` files in the BIDS dataset (`highspeed-bids`) and the deocidng results of `highspeed-decoding`)
+- `/code` contains all project-specific code, mainly `.Rmd` notebooks. The rendered versions of the notebooks can be found on the project website at https://wittkuhn.mpib.berlin/highspeed/
+- `/data` contains relevant input datasets: the behavioral `events.tsv` files in the BIDS dataset (`highspeed-bids`) and the decoding results of (`highspeed-decoding`)
 - `/figures` and `/sourcedata` are empty subdirectories that are populated with the Figures and Source Data produced by the `.Rmd` scripts in `/code`
 
 ## Citation
