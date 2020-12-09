@@ -1,0 +1,84 @@
+# Metadata for DOI registration according to DataCite Metadata Schema 4.1.
+# For detailed schema description see https://doi.org/10.5438/0014
+
+## Required fields
+
+# The main researchers involved. Include digital identifier (e.g., ORCID)
+# if possible, including the prefix to indicate its type.
+authors:
+  -
+    firstname: "Lennart"
+    lastname: "Wittkuhn"
+    affiliation: "Max Planck Institute for Human Development, Max Planck UCL Centre for Computational Psychiatry and Ageing Research, Berlin, Germany"
+    id: "ORCID:0000-0001-2345-6789"
+  -
+    firstname: "Nicolas W."
+    lastname: "Schuck"
+    affiliation: "Max Planck Institute for Human Development, Max Planck UCL Centre for Computational Psychiatry and Ageing Research, Berlin, Germany"
+    id: "ORCID:0000-0002-0150-8776"
+
+# A title to describe the published resource.
+title: "Dynamics of fMRI patterns reflect sub-second activation sequences and reveal replay in human visual cortex - Statistical analyses"
+
+# Additional information about the resource, e.g., a brief abstract.
+description: |
+  Neural computations are often fast and anatomically localized.
+  Yet, investigating such computations in humans is challenging because non-invasive methods have either high temporal or spatial resolution, but not both.
+  Of particular relevance, fast neural replay is known to occur throughout the brain in a coordinated fashion about which little is known.
+  We develop a multivariate analysis method for functional magnetic resonance imaging that makes it possible to study sequentially activated neural patterns separated by less than 100 ms with precise spatial resolution.
+  Human participants viewed images individually and sequentially with speeds up to 32 ms between items.
+  Probabilistic pattern classifiers were trained on activation patterns in visual and ventrotemporal cortex during individual image trials.
+  Applied to sequence trials, probabilistic classifier time courses allow the detection of neural representations and their order.
+  Order detection remains possible at speeds up to 32 ms between items.
+  The frequency spectrum of the sequentiality metric distinguishes between sub- versus supra-second sequences.
+  Importantly, applied to resting-state data our method reveals fast replay of task-related stimuli in visual cortex.
+  This indicates that non-hippocampal replay occurs even after tasks without memory requirements and shows that our method can be used to detect such spontaneously occurring replay.
+
+# Lit of keywords the resource should be associated with.
+# Give as many keywords as possible, to make the resource findable.
+keywords:
+  - cognitive neuroscience
+  - functional magnetic resonance imaging
+  - hippocampal replay
+
+# License information for this resource. Please provide the license name and/or a link to the license.
+# Please add also a corresponding LICENSE file to the repository.
+license:
+  name: "Creative Commons Attribution-ShareAlike 4.0"
+  url: "https://creativecommons.org/licenses/by-sa/4.0/"
+
+
+
+## Optional Fields
+
+# Funding information for this resource.
+# Separate funder name and grant number by comma.
+funding:
+  - "Max Planck Society, Independent Max Planck Research Group grant"
+  - "European Union, ERC Starting Grant ERC-2019-StG REPLAY-852669"
+  - "Max Planck Institute for Human Development"
+
+
+# Related publications. reftype might be: IsSupplementTo, IsDescribedBy, IsReferencedBy.
+# Please provide digital identifier (e.g., DOI) if possible.
+# Add a prefix to the ID, separated by a colon, to indicate the source.
+# Supported sources are: DOI, arXiv, PMID
+# In the citation field, please provide the full reference, including title, authors, journal etc.
+references:
+  -
+    reftype: "IsSupplementTo"
+    citation: "Wittkuhn, L. and Schuck, N. W. (2020). Dynamics of fMRI patterns reflect sub-second activation sequences and reveal replay in human visual cortex. Nature Communications"
+  -
+    id: "doi:10.1101/2020.02.15.950667"
+    reftype: "IsSupplementTo"
+    citation: "Wittkuhn, L. and Schuck, N. W. (2020). Faster than thought: Detecting sub-second activation sequences with sequential fMRI pattern analysis. bioRxiv. doi:10.1101/2020.02.15.950667"
+
+
+
+
+
+# Resource type. Default is Dataset, other possible values are Software, DataPaper, Image, Text.
+resourcetype: Dataset
+
+# Do not edit or remove the following line
+templateversion: 1.2
