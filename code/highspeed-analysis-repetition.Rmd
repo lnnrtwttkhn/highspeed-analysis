@@ -169,6 +169,12 @@ ggsave(filename = "highspeed_plot_decoding_repetition_timecourses_supplement.pdf
 ```{r, echo=TRUE}
 subset(dt_pred_rep_timecourses, classification == "ovr") %>%
   select(-classification, -num_sub) %>%
+  filter(change %in% c(2, 9)) %>%
+  transform(change = ifelse(change == 2, "forward", change)) %>%
+  transform(change = ifelse(change == 9, "backward", change)) %>%
+  dplyr::rename(event = "position") %>%
+  dplyr::rename(interference = "change") %>%
+  dplyr::rename(tr = "seq_tr") %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_4a.csv"),
             row.names = FALSE)
 ```
@@ -291,6 +297,7 @@ ggsave(filename = "highspeed_plot_decoding_repetition_probabilities_mean_all_trs
 ```{r, echo=TRUE}
 subset(dt_pred_rep_mean_prob_plot, classification == "ovr") %>%
   select(-classification, -num_trials) %>%
+  dplyr::rename(event = "position_label") %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_4b.csv"),
             row.names = FALSE)
 ```
@@ -403,6 +410,12 @@ ggsave(filename = "highspeed_plot_decoding_repetition_average_probabilities.pdf"
 ```{r, echo=TRUE}
 subset(dt_pred_rep_a2_sub, classification == "ovr") %>%
   select(-classification) %>%
+  filter(change %in% c(2, 9)) %>%
+  transform(change = as.numeric(as.character(change))) %>%
+  transform(change = ifelse(change == 2, "forward", change)) %>%
+  transform(change = ifelse(change == 9, "backward", change)) %>%
+  dplyr::rename(interference = "change") %>%
+  dplyr::rename(event = "position_label") %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_4c.csv"),
             row.names = FALSE)
 ```
@@ -914,7 +927,11 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_matrix.pdf",
 
 ```{r, echo=TRUE}
 subset(dt_pred_rep_step_trans, classification == "ovr" & change %in% c(2,9)) %>%
-  select(-classification, -num_data) %>%
+  select(-classification, -num_data, -mean_num_label) %>%
+  filter(change %in% c(2, 9)) %>%
+  transform(change = as.numeric(as.character(change))) %>%
+  transform(change = ifelse(change == 2, "forward", change)) %>%
+  transform(change = ifelse(change == 9, "backward", change)) %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_4e.csv"),
             row.names = FALSE)
 ```
@@ -979,9 +996,12 @@ ggsave(filename = "highspeed_plot_decoding_repetition_transition_types.pdf",
 ```{r, echo=TRUE}
 subset(
   dt_pred_rep_step_version1, classification == "ovr" & change %in% c(2,9) &
-  step_type != "repetition 1" & step_type != "repetition 2" & step_type != "repetition out"
-) %>%
+  step_type != "repetition 1" & step_type != "repetition 2" & step_type != "repetition out") %>%
   select(-classification) %>%
+  filter(change %in% c(2, 9)) %>%
+  transform(change = as.numeric(as.character(change))) %>%
+  transform(change = ifelse(change == 2, "forward", change)) %>%
+  transform(change = ifelse(change == 9, "backward", change)) %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_4d.csv"),
             row.names = FALSE)
 ```
