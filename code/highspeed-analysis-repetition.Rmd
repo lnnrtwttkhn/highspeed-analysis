@@ -932,7 +932,8 @@ subset(dt_pred_rep_step_trans, classification == "ovr" & change %in% c(2,9)) %>%
   transform(change = as.numeric(as.character(change))) %>%
   transform(change = ifelse(change == 2, "forward", change)) %>%
   transform(change = ifelse(change == 9, "backward", change)) %>%
-  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4e.csv"),
+  dplyr::rename(interference = "change") %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s10e.csv"),
             row.names = FALSE)
 ```
 
@@ -1002,7 +1003,8 @@ subset(
   transform(change = as.numeric(as.character(change))) %>%
   transform(change = ifelse(change == 2, "forward", change)) %>%
   transform(change = ifelse(change == 9, "backward", change)) %>%
-  write.csv(., file = file.path(path_sourcedata, "source_data_figure_4d.csv"),
+  dplyr::rename(interference = "change") %>%
+  write.csv(., file = file.path(path_sourcedata, "source_data_figure_s10d.csv"),
             row.names = FALSE)
 ```
 
