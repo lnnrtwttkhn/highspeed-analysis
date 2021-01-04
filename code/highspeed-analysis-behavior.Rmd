@@ -917,7 +917,13 @@ plot_behav_rep_all
 
 ```{r}
 dt_rep_behav %>%
-  select(-num_trials) %>%
+  filter(trial_target_position != 16) %>%
+  mutate(label = paste0(
+    trial_target_position - 1, "/", 10 - trial_target_position)) %>%
+  select(-num_trials, -interference, -trial_target_position) %>%
+  dplyr::rename(repetitions = "label") %>%
+  setDT(.) %>%
+  setorder(subject, repetitions) %>%
   write.csv(., file = file.path(path_sourcedata, "source_data_figure_s1e.csv"),
             row.names = FALSE)
 ```
